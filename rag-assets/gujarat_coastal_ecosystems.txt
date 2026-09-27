@@ -1,0 +1,11 @@
+GUJARAT COASTAL ECOLOGY & SENSITIVE ASSETS GUIDE
+------------------------------------------------
+Section 1: Surat & Hazira Estuarine Sensitivity Index
+1. Hazira Mangrove Belts: Located along the northern mouth of the Tapi Estuary. Highly sensitive (ESI Rating: 10 - Highest Risk). Oil or toxic industrial runoff penetrating mangrove root systems coats pneumatophores, causing hypoxia and mortality of Avicennia marina stands.
+2. Suvali Beach & Intertidal Flats: Sandy beach and mudflat habitat supporting migratory waders and local benthic shellfish. Medium-High Sensitivity (ESI Rating: 8).
+3. Mindhola Estuary Spawning Grounds: Critical nursery zone for juvenile penaeid shrimp and coastal mullet fish species. Any turbidity plume exceeding baseline reflectance by > 30% during monsoon discharge disrupts larval feeding.
+
+Section 2: Response Priorities by GIS Region
+- Priority 1: Prevent oil slicks from entering Hazira Mangrove Creek during FLOOD tide cycles (when currents rush inward at 0.5–0.8 m/s).
+- Priority 2: Protect Magdalla fishing village aquaculture and estuarine net fishing zones.
+- Priority 3: Suvali Beach shoreline cleanup using manual raking rather than heavy machinery to protect intertidal fauna.

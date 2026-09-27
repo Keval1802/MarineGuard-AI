@@ -1,0 +1,11 @@
+MARITIME POLLUTION RESPONSE PROCEDURE & SENSITIVITY MANUAL
+------------------------------------------------------------
+Section 1: Oil Spill Anomaly Response Protocols
+When an oil-like surface anomaly is detected via Synthetic Aperture Radar (SAR) or optical satellite imagery:
+1. Verification & Wind Window Assessment: Verify local sea-surface wind speeds. Dark SAR patches observed in wind speeds between 2 m/s and 10 m/s indicate a high-confidence oil sheen candidate. Wind speeds below 2 m/s frequently generate biogenic slick look-alikes, while wind speeds exceeding 10 m/s lead to rapid natural dispersion.
+2. Containment Strategy: For high-priority slicks threatening coastal mangroves or port channels, deploy oil containment booms around the seaward perimeter. Skimming vessels should be dispatched if estimated slick thickness exceeds 0.1 mm.
+3. Dispersant Guidelines: Chemical dispersants are strictly prohibited in shallow estuarine waters (< 10 m depth) such as the Tapi and Mindhola river outlets due to severe benthic toxicity.
+
+Section 2: Floating Waste & Plastic Accumulation
+1. Debris Patch Monitoring: Floating material candidates identified via elevated NIR/SWIR reflectance ratios should be tracked for coastal landfall.
+2. Recovery Protocols: Floating debris barriers should be established across narrow tidal creek mouths before high tide flood cycles to prevent debris from washing deep into intertidal mangrove roots.
