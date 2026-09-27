@@ -126,11 +126,29 @@ def test_langgraph_agent_workflow():
 
     asyncio.run(run_test())
 
+from unittest.mock import patch, MagicMock
+
 def test_reanalyze_api_with_langgraph():
     """Test POST /incidents/{incident_id}/reanalyze with admin token."""
     db = SessionLocal()
     inc = db.query(Incident).first()
-    assert inc is not None
+    created_temp = False
+    if inc is None:
+        inc = Incident(
+            id="test-reanalyze-inc-001",
+            incident_code="MG-TEST-REANALYZE",
+            anomaly_type="FLOATING_MATERIAL_CANDIDATE",
+            latitude=21.145,
+            longitude=72.620,
+            confidence_score=85.0,
+            severity_score=75.0,
+            priority_score=0.82,
+            status="DETECTED"
+        )
+        db.add(inc)
+        db.commit()
+        created_temp = True
+
     inc_id = inc.id
     db.close()
 
@@ -140,6 +158,12 @@ def test_reanalyze_api_with_langgraph():
     data = response.json()
     assert data["status"] == "reanalysis_completed"
     assert "MARINEGUARD AI" in data["report"]
+
+    if created_temp:
+        db_clean = SessionLocal()
+        db_clean.query(Incident).filter(Incident.id == "test-reanalyze-inc-001").delete()
+        db_clean.commit()
+        db_clean.close()
 
 def test_rag_api_endpoints():
     """Test GET /api/v1/rag/documents and POST /api/v1/rag/query REST endpoints."""
@@ -160,17 +184,29 @@ def test_rag_api_endpoints():
     assert query_data["status"] == "success"
     assert len(query_data["passages"]) > 0
 
-    # Test POST scrape
-    scrape_res = client.post("/api/v1/rag/scrape", json={
-        "url": "https://en.wikipedia.org/wiki/2017_Ennore_oil_spill",
-        "doc_identifier": "ennore_oil_spill_history",
-        "auto_reindex": True
-    }, headers=headers)
-    assert scrape_res.status_code == 200
-    scrape_data = scrape_res.json()
-    assert scrape_data["status"] == "success"
-    assert "web_ennore_oil_spill_history.txt" in scrape_data["filename"]
-    assert scrape_data["total_rag_chunks"] > 0
+    # Test POST scrape (mock network call to prevent external HTTP failures in unit tests)
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = """
+    <html>
+        <body>
+            <h1>2017 Ennore Oil Spill History</h1>
+            <p>The 2017 Ennore oil spill occurred on 28 January 2017 off the coast of Chennai in Tamil Nadu, India. 
+            Two ships collided outside Kamarajar Port in Ennore, resulting in a severe marine pollution incident.</p>
+        </body>
+    </html>
+    """
+    with patch("httpx.get", return_value=mock_resp):
+        scrape_res = client.post("/api/v1/rag/scrape", json={
+            "url": "https://en.wikipedia.org/wiki/2017_Ennore_oil_spill",
+            "doc_identifier": "ennore_oil_spill_history",
+            "auto_reindex": True
+        }, headers=headers)
+        assert scrape_res.status_code == 200
+        scrape_data = scrape_res.json()
+        assert scrape_data["status"] == "success"
+        assert "web_ennore_oil_spill_history.txt" in scrape_data["filename"]
+        assert scrape_data["total_rag_chunks"] > 0
 
 def test_mcp_api_endpoints():
     """Test GET /api/v1/mcp/tools and POST /api/v1/mcp/call REST endpoints."""

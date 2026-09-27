@@ -65,7 +65,7 @@ def scrape_url_to_rag(
         raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
 
     try:
-        headers = {"User-Agent": "MarineGuardAI-EnvironmentalBot/1.0"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
         resp = httpx.get(request.url, headers=headers, follow_redirects=True, timeout=12.0)
         if resp.status_code != 200:
             raise HTTPException(status_code=400, detail=f"Web page returned status code {resp.status_code}")
