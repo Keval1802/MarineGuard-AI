@@ -46,10 +46,6 @@ jobs:
         run: |
           pytest backend/tests/
 
-      - name: Run Demo Incident Seeding & Validation
-        run: |
-          python scripts/seed_demo_incident.py
-
       - name: Upload Evidence Artifacts
         uses: actions/upload-artifact@v4
         if: always()
