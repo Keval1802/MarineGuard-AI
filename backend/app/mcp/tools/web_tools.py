@@ -1,14 +1,31 @@
 from typing import Dict, Any, List
-from ddgs import DDGS
-import trafilatura
+try:
+    from duckduckgo_search import DDGS
+except ImportError:
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        DDGS = None
+
+try:
+    import trafilatura
+except ImportError:
+    trafilatura = None
+
 import httpx
 
 class WebMCPTools:
-    """MCP Tools for Live Web Search & Web Scraping (Zero Cost)."""
+    """MCP Tools for Live Web Search & Web Scraping."""
 
     @staticmethod
     def web_search_maritime(query: str, max_results: int = 5) -> Dict[str, Any]:
         """Search the web in real-time for maritime incidents, vessel news, or regional alerts."""
+        if DDGS is None:
+            return {
+                "status": "error",
+                "message": "duckduckgo_search library is not installed",
+                "results": []
+            }
         try:
             with DDGS() as ddgs:
                 results = list(ddgs.text(f"maritime {query}", max_results=max_results))
@@ -31,6 +48,8 @@ class WebMCPTools:
     @staticmethod
     def scrape_maritime_webpage(url: str) -> Dict[str, Any]:
         """Scrape and extract clean readable markdown/text content from a target URL."""
+        if trafilatura is None:
+            return {"status": "error", "message": "trafilatura library is not installed"}
         headers = {"User-Agent": "MarineGuardAI-EnvironmentalBot/1.0"}
         try:
             response = httpx.get(url, headers=headers, follow_redirects=True, timeout=12.0)
