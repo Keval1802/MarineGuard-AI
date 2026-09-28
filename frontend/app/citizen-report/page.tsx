@@ -55,7 +55,7 @@ export default function CitizenReportPage() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-5 shadow-xl">
+        <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-5 shadow-xl" style={{ marginTop: "0px" }}>
           
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-2">
