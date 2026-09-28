@@ -18,11 +18,11 @@ jobs:
       PYTHONPATH: backend
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      SMTP_HOST: ${{ secrets.SMTP_HOST }}
-      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL_RECIPIENT: ${{ secrets.ALERT_EMAIL_RECIPIENT }}
+      ALERT_EMAIL_RECIPIENT: ${{ secrets.ALERT_EMAIL_RECIPIENT || 'alerts@marineguard.ai' }}
 
     steps:
       - name: Checkout Code

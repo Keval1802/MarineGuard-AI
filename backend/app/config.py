@@ -1,6 +1,6 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing import List, Tuple
 
 class Settings(BaseSettings):
@@ -72,6 +72,32 @@ class Settings(BaseSettings):
     SMTP_USER: str = Field(default="")
     SMTP_PASSWORD: str = Field(default="")
     ALERT_EMAIL_RECIPIENT: str = Field(default="alerts@marineguard.ai")
+
+    @field_validator("SMTP_PORT", mode="before")
+    @classmethod
+    def parse_smtp_port(cls, v):
+        if v == "" or v is None:
+            return 587
+        if isinstance(v, str):
+            v_str = v.strip()
+            if not v_str:
+                return 587
+            return int(v_str)
+        return v
+
+    @field_validator("SMTP_HOST", mode="before")
+    @classmethod
+    def parse_smtp_host(cls, v):
+        if not v or (isinstance(v, str) and not v.strip()):
+            return "smtp.gmail.com"
+        return v
+
+    @field_validator("ALERT_EMAIL_RECIPIENT", mode="before")
+    @classmethod
+    def parse_alert_email_recipient(cls, v):
+        if not v or (isinstance(v, str) and not v.strip()):
+            return "alerts@marineguard.ai"
+        return v
     
     # Incident Merge Rule Parameters (Section 21)
     INCIDENT_MERGE_MAX_DISTANCE_KM: float = 5.0
