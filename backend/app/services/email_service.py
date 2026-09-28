@@ -172,6 +172,8 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
         confidence_score: float,
         location_str: str,
         affected_areas_str: str,
+        report_text: Optional[str] = None,
+        image_path: Optional[str] = None,
         recipient: Optional[str] = None
     ) -> Dict[str, Any]:
         """Alert trigger wrapper for monitoring pipeline."""
@@ -191,6 +193,8 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
         res = cls.send_report_email(
             incident_code=incident_code,
             recipient=target_email,
+            report_text=report_text,
+            image_path=image_path,
             location_name=location_str,
             anomaly_type=anomaly_type,
             priority_score=priority_score

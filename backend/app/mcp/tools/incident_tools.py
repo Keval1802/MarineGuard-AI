@@ -101,24 +101,17 @@ class IncidentMCPTools:
             if not inc:
                 return {"status": "error", "error_code": "data_not_available", "message": "Incident not found"}
 
+            img_path = inc.before_after_image_path or inc.annotated_image_path or inc.raw_image_path
             alert_res = EmailAlertService.send_incident_alert(
                 incident_code=inc.incident_code,
                 priority_score=inc.priority_score,
                 risk_level="HIGH" if inc.priority_score >= 0.50 else "MODERATE",
                 anomaly_type=inc.anomaly_type,
                 confidence_score=inc.confidence_score,
-                location_str=f"Hazira ({inc.latitude:.3f}, {inc.longitude:.3f})",
+                location_str=inc.location_name or f"Hazira ({inc.latitude:.3f}, {inc.longitude:.3f})",
                 affected_areas_str="Hazira Mangrove Belt, Suvali Beach",
-                recipient=recipient
-            )
-            alert_res = EmailAlertService.send_incident_alert(
-                incident_code=inc.incident_code,
-                priority_score=inc.priority_score,
-                risk_level="HIGH" if inc.priority_score >= 0.50 else "MODERATE",
-                anomaly_type=inc.anomaly_type,
-                confidence_score=inc.confidence_score,
-                location_str=f"Hazira ({inc.latitude:.3f}, {inc.longitude:.3f})",
-                affected_areas_str="Hazira Mangrove Belt, Suvali Beach",
+                report_text=inc.report,
+                image_path=img_path,
                 recipient=recipient
             )
             return {"status": "success", "alert_dispatch": alert_res}

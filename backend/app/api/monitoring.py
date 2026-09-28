@@ -306,14 +306,17 @@ async def run_monitoring_cycle(
         )
 
         # Trigger Email Notification / Alert Queuing (Section 27)
+        img_attachment = image_paths.get("annotated_image_path") or image_paths.get("raw_image_path")
         alert_res = EmailAlertService.send_incident_alert(
             incident_code=inc_code,
             priority_score=target_incident.priority_score,
             risk_level=risk_res["risk_level"],
             anomaly_type=det_class,
             confidence_score=target_incident.confidence_score,
-            location_str=f"Hazira Coast ({lat:.3f}, {lon:.3f})",
-            affected_areas_str=affected_str
+            location_str=target_incident.location_name or f"Hazira Coast ({lat:.3f}, {lon:.3f})",
+            affected_areas_str=affected_str,
+            report_text=target_incident.report,
+            image_path=img_attachment
         )
         if alert_res["triggered"]:
             db.add(Alert(
