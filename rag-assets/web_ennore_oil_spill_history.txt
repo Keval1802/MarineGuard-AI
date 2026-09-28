@@ -1,4 +1,0 @@
-SOURCE_URL: https://en.wikipedia.org/wiki/2017_Ennore_oil_spill
-DOCUMENT_NAME: web_ennore_oil_spill_history.txt
-
-The 2017 Ennore oil spill occurred on 28 January 2017 off the coast of Chennai in Tamil Nadu, India. Two ships collided outside Kamarajar Port in Ennore, resulting in a severe marine pollution incident.
