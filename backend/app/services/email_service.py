@@ -1,7 +1,7 @@
 import os
 import smtplib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.image import MIMEImage
@@ -9,6 +9,8 @@ from typing import Dict, Any, Optional
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 class EmailAlertService:
     """
@@ -40,10 +42,13 @@ class EmailAlertService:
         loc_str = location_name or "Coastal Marine Region"
         atype_str = anomaly_type or "Pollution Candidate"
         pri_score = priority_score or 0.65
-        dispatch_ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        
+        ist_now = datetime.now(timezone.utc).astimezone(IST)
+        dispatch_ts = ist_now.strftime('%d %b %Y, %I:%M:%S %p IST')
+        subject_ts = ist_now.strftime('%I:%M %p IST')
         cid_image = f"satellite_image_{incident_code}_{int(datetime.utcnow().timestamp())}"
 
-        subject = f"[MARINEGUARD AI ALERT] Incident Report {incident_code} — {loc_str} [{datetime.utcnow().strftime('%H:%M UTC')}]"
+        subject = f"[MARINEGUARD AI ALERT] Incident Report {incident_code} — {loc_str} [{subject_ts}]"
 
         # 1. Plain Text Body
         body_text = f"""MARINEGUARD AI — INCIDENT INVESTIGATION REPORT

@@ -1,12 +1,14 @@
 import os
 import cv2
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from app.config import settings
 from app.satellite.catalog import CopernicusCatalogService
 from app.satellite.preprocessing import SatellitePreprocessor
 from app.satellite.image_annotation import ImageAnnotator
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 class SatelliteImageCaptureService:
     """
@@ -37,9 +39,12 @@ class SatelliteImageCaptureService:
         3. Before/After side-by-side comparative image
         """
         if not acquisition_time:
-            acquisition_time = datetime.utcnow()
+            acquisition_time = datetime.now(timezone.utc)
+        elif acquisition_time.tzinfo is None:
+            acquisition_time = acquisition_time.replace(tzinfo=timezone.utc)
 
-        timestamp_str = acquisition_time.strftime("%Y-%m-%d %H:%M:%S UTC")
+        ist_acq = acquisition_time.astimezone(IST)
+        timestamp_str = ist_acq.strftime("%Y-%m-%d %H:%M:%S IST")
 
         # Fetch real Copernicus satellite image scene for Sentinel-1 SAR and Sentinel-2 Optical
         s1_scene = self.catalog.fetch_real_satellite_image(

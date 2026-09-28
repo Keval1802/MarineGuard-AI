@@ -1,6 +1,8 @@
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from app.services.biodiversity_service import BiodiversityService
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 class ReportService:
     """
@@ -42,7 +44,8 @@ class ReportService:
         
         from app.environmental.gis import GISService
         loc_str = location_name if (location_name and location_name != "Unknown Marine Region" and "Offshore Sector" not in location_name) else GISService.get_location_name(latitude, longitude)
-        now_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+        now_ist = datetime.now(timezone.utc).astimezone(IST)
+        now_str = now_ist.strftime('%Y-%m-%d %H:%M IST')
         first_str = first_detected_time or now_str
 
         # 1. Detection Reliability & Wind/Cloud-Gate Check (Section 16)
