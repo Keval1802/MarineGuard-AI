@@ -138,6 +138,44 @@ async def test_supabase_integration():
                 except Exception:
                     pass
 
+            # Sync Candidate Sources Table
+            cs_list = db.query(CandidateSource).filter(CandidateSource.incident_id == inc.id).all()
+            for cs in cs_list:
+                cs_payload = {
+                    "id": cs.id,
+                    "incident_id": cs.incident_id,
+                    "source_type": cs.source_type,
+                    "reference": cs.reference,
+                    "confidence": cs.confidence,
+                    "evidence_json": cs.evidence_json
+                }
+                try:
+                    client.table("candidate_sources").upsert(cs_payload).execute()
+                    print(f"  [OK] Upserted candidate source: {cs.reference}")
+                except Exception as cs_err:
+                    print(f"  [NOTICE] candidate_sources sync notice: {cs_err}")
+
+            # Sync Vessel Events Table
+            from app.models.evidence import VesselEvent
+            ve_list = db.query(VesselEvent).filter(VesselEvent.incident_id == inc.id).all()
+            for ve in ve_list:
+                ve_payload = {
+                    "id": ve.id,
+                    "incident_id": ve.incident_id,
+                    "vessel_id": ve.vessel_identifier,
+                    "timestamp": ve.timestamp.isoformat() if ve.timestamp else datetime.utcnow().isoformat(),
+                    "latitude": ve.latitude,
+                    "longitude": ve.longitude,
+                    "speed_knots": ve.speed,
+                    "heading_deg": ve.direction,
+                    "risk_level": "HIGH"
+                }
+                try:
+                    client.table("vessel_events").upsert(ve_payload).execute()
+                    print(f"  [OK] Upserted vessel event: {ve.vessel_identifier}")
+                except Exception as ve_err:
+                    print(f"  [NOTICE] vessel_events sync notice: {ve_err}")
+
         # 4. Storage Bucket Evidence Upload Test
         print("\n[STEP 4] Uploading Real Satellite Visual Evidence Artifacts to Supabase Storage Bucket...")
         evidence_dir = os.path.join(backend_dir, "storage", "evidence")

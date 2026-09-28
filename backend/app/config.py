@@ -25,8 +25,12 @@ class Settings(BaseSettings):
     # Authentication & Security
     SECRET_KEY: str = Field(default="")
     SUPABASE_URL: str = Field(default="https://lnlbjvfnwigxkwubxxsg.supabase.co")
-    SUPABASE_ANON_KEY: str = Field(default="")
-    SUPABASE_SERVICE_ROLE_KEY: str = Field(default="")
+    SUPABASE_ANON_KEY: str = Field(
+        default_factory=lambda: os.getenv("SUPABASE_ANON_KEY") or os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+    )
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(
+        default_factory=lambda: os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_SECRET_KEY", "")
+    )
     SUPABASE_JWKS_URL: str = Field(
         default_factory=lambda: f"{os.getenv('SUPABASE_URL', 'https://lnlbjvfnwigxkwubxxsg.supabase.co')}/auth/v1/.well-known/jwks.json"
     )

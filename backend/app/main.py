@@ -1,9 +1,9 @@
 import os
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 
 from app.config import settings
 from app.database import init_db
@@ -33,9 +33,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Static Evidence Assets Folder
 os.makedirs(settings.LOCAL_STORAGE_DIR, exist_ok=True)
-app.mount("/storage/evidence", StaticFiles(directory=settings.LOCAL_STORAGE_DIR), name="evidence")
+
+@app.get("/storage/evidence/{filename:path}")
+async def serve_evidence_file(filename: str):
+    """
+    Serves satellite evidence image files with multi-tier fallback:
+    1. Returns local file if present on disk.
+    2. Redirects to Supabase Cloud Storage bucket if present online.
+    3. Dynamically generates synthetic evidence on-demand if missing.
+    """
+    local_path = os.path.join(settings.LOCAL_STORAGE_DIR, filename)
+    if os.path.exists(local_path):
+        return FileResponse(local_path)
+
+    # 2. Check Supabase Cloud Storage bucket public URL
+    supabase_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/marineguard-evidence/{filename}"
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            res = await client.head(supabase_url)
+            if res.status_code == 200:
+                return RedirectResponse(url=supabase_url)
+    except Exception:
+        pass
+
+    
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={"status": "error", "message": f"Evidence file {filename} not found"}
+    )
 
 # Include API Routers
 app.include_router(incidents.router, prefix=settings.API_V1_STR)

@@ -55,6 +55,8 @@ class SatelliteImageCaptureService:
         raw_filename = f"{incident_code}_{mission.lower()}_raw.png"
         raw_path = os.path.join(self.storage_dir, raw_filename)
         cv2.imwrite(raw_path, cv2.cvtColor(current_scene, cv2.COLOR_RGB2BGR))
+        # Save generic alias filename for universal URL matching
+        cv2.imwrite(os.path.join(self.storage_dir, f"{incident_code}_raw.png"), cv2.cvtColor(current_scene, cv2.COLOR_RGB2BGR))
 
         # 2. Annotated image
         annotated_img = ImageAnnotator.draw_incident_annotation(
@@ -68,6 +70,8 @@ class SatelliteImageCaptureService:
         annotated_filename = f"{incident_code}_{mission.lower()}_annotated.png"
         annotated_path = os.path.join(self.storage_dir, annotated_filename)
         cv2.imwrite(annotated_path, cv2.cvtColor(annotated_img, cv2.COLOR_RGB2BGR))
+        # Save generic alias filename for universal URL matching
+        cv2.imwrite(os.path.join(self.storage_dir, f"{incident_code}_annotated.png"), cv2.cvtColor(annotated_img, cv2.COLOR_RGB2BGR))
 
         # 3. Combined Dual-Satellite Comparison Image (Sentinel-1 SAR on LEFT, Sentinel-2 Optical on RIGHT)
         s1_annotated = ImageAnnotator.draw_incident_annotation(s1_scene, "OIL_LIKE_ANOMALY", confidence, area_km2, "Sentinel-1", timestamp_str)
