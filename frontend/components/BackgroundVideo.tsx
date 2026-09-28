@@ -25,7 +25,7 @@ export default function BackgroundVideo() {
         preload="auto"
         className="absolute inset-0 w-full h-full object-cover opacity-40 filter brightness-105 contrast-105 transition-opacity duration-700"
       >
-        <source src="/dolphins_no_gemini.mp4" type="video/mp4" />
+        <source src="/background.mp4" type="video/mp4" />
       </video>
 
       {/* Balanced Overlay for Content Readability */}
