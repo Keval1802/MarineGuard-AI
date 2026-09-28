@@ -32,7 +32,7 @@ def test_health_check():
 def test_sar_wind_gate_rules():
     """Test Section 16 SAR wind-gate rule logic."""
     catalog = CopernicusCatalogService()
-    sar_scene = catalog.generate_synthetic_scene_image(mission="Sentinel-1", anomaly_type="OIL_LIKE_ANOMALY")
+    sar_scene = catalog.fetch_real_satellite_image(mission="Sentinel-1", anomaly_type="OIL_LIKE_ANOMALY")
 
     # Case 1: Ideal wind speed 5.0 m/s (between 2 and 10 m/s) -> OIL_LIKE_ANOMALY candidate
     res1 = Sentinel1Analyzer.evaluate_oil_candidate(sar_scene, wind_speed_ms=5.0)
@@ -57,13 +57,13 @@ def test_optical_per_class_detectors():
     catalog = CopernicusCatalogService()
     
     # Floating debris scene
-    debris_scene = catalog.generate_synthetic_scene_image(mission="Sentinel-2", anomaly_type="FLOATING_MATERIAL_CANDIDATE")
+    debris_scene = catalog.fetch_real_satellite_image(mission="Sentinel-2", anomaly_type="FLOATING_MATERIAL_CANDIDATE")
     res_debris = Sentinel2Analyzer.analyze_floating_material(debris_scene)
     assert res_debris["detected"] is True
     assert res_debris["anomaly_class"] == "FLOATING_MATERIAL_CANDIDATE"
 
     # Turbidity plume scene
-    turb_scene = catalog.generate_synthetic_scene_image(mission="Sentinel-2", anomaly_type="HIGH_TURBIDITY_EVENT")
+    turb_scene = catalog.fetch_real_satellite_image(mission="Sentinel-2", anomaly_type="HIGH_TURBIDITY_EVENT")
     res_turb = Sentinel2Analyzer.analyze_turbidity(turb_scene)
     assert res_turb["detected"] is True
     assert res_turb["anomaly_class"] == "HIGH_TURBIDITY_EVENT"

@@ -70,9 +70,9 @@ async def run_monitoring_cycle(
         if existing and existing.processed and not force_anomaly:
             continue
 
-        # Generate / Process scene
+        # Fetch real satellite observation scene
         target_anomaly = force_anomaly or ("OIL_LIKE_ANOMALY" if "S1" in prod_id else "HIGH_TURBIDITY_EVENT")
-        synthetic_scene = catalog.generate_synthetic_scene_image(
+        real_scene = catalog.fetch_real_satellite_image(
             width=512, height=512, mission=scene["mission"], anomaly_type=target_anomaly, lat=lat, lon=lon
         )
 
@@ -82,7 +82,7 @@ async def run_monitoring_cycle(
 
         # Anomaly Detection (Section 16)
         detection = detector.process_scene(
-            scene_rgb=synthetic_scene,
+            scene_rgb=real_scene,
             mission=scene["mission"],
             wind_speed_ms=weather_data["wind_speed_ms"],
             target_class=target_anomaly

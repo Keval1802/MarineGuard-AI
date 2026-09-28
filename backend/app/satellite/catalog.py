@@ -193,156 +193,17 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
             except Exception as e:
                 print(f"[CopernicusCatalogService] Live Process API fetch notice: {e}")
 
-        # High-resolution authentic satellite rendering engine for Sentinel-1 & Sentinel-2
-        arr = self._generate_realistic_satellite_scene(
-            width=width, height=height, lat=lat, lon=lon, mission=mission, anomaly_type=anomaly_type
-        )
+        # Fallback ocean satellite tile array when live API is unavailable
+        is_sar = "Sentinel-1" in mission
+        if is_sar:
+            # Grayscale SAR radar matrix
+            arr = np.full((height, width, 3), 75, dtype=np.uint8)
+        else:
+            # Multi-spectral True Color ocean blue matrix
+            arr = np.zeros((height, width, 3), dtype=np.uint8)
+            arr[:, :, 0] = 15  # R
+            arr[:, :, 1] = 55  # G
+            arr[:, :, 2] = 110 # B
+
         self._image_cache[cache_key] = arr
         return arr
-
-    def _generate_realistic_satellite_scene(
-        self,
-        width: int,
-        height: int,
-        lat: float,
-        lon: float,
-        mission: str,
-        anomaly_type: Optional[str] = None
-    ) -> np.ndarray:
-        """
-        Renders authentic satellite observation scenes:
-        - Sentinel-1: Grayscale SAR radar VV backscatter speckle texture, coastal radar backscatter land, dark radar damping slick, bright vessel targets.
-        - Sentinel-2: True-color optical ocean blue, shallow coastal sediment plumes, mangrove coast, floating candidate reflectance patch.
-        """
-        np.random.seed(int(abs(lat * 1000 + lon * 100)))
-        atype = anomaly_type or "OIL_LIKE_ANOMALY"
-        is_sar = "Sentinel-1" in mission
-
-        # Define coastal land geometry (Peninsula / Estuary Shoreline)
-        coast_pts = np.array([
-            [int(width * 0.68), 0],
-            [width, 0],
-            [width, height],
-            [int(width * 0.78), height],
-            [int(width * 0.72), int(height * 0.55)],
-            [int(width * 0.65), int(height * 0.35)]
-        ], np.int32)
-
-        # Define anomaly slick fluid geometry
-        slick_pts = np.array([
-            [int(width * 0.32), int(height * 0.42)],
-            [int(width * 0.52), int(height * 0.38)],
-            [int(width * 0.60), int(height * 0.50)],
-            [int(width * 0.46), int(height * 0.62)],
-            [int(width * 0.30), int(height * 0.54)]
-        ], np.int32)
-
-        if is_sar:
-            # --- SENTINEL-1 SAR RADAR RENDERING ---
-            # Active radar VV backscatter speckle pattern
-            sar_base = np.random.gamma(3.0, 25.0, (height, width)).astype(np.float32)
-            sar_base = cv2.GaussianBlur(sar_base, (3, 3), 0)
-
-            # Marine ocean surface VV intensity (~75)
-            sar = np.clip(sar_base, 30, 160).astype(np.uint8)
-
-            # High radar backscatter landmass (~190)
-            mask_land = np.zeros((height, width), dtype=np.uint8)
-            cv2.fillPoly(mask_land, [coast_pts], 255)
-            mask_land = cv2.GaussianBlur(mask_land, (11, 11), 0)
-            sar[mask_land > 100] = np.clip(sar[mask_land > 100] + 110, 0, 235)
-
-            # Dark VV radar damping anomaly slick (~22 intensity)
-            mask_slick = np.zeros((height, width), dtype=np.uint8)
-            cv2.fillPoly(mask_slick, [slick_pts], 255)
-            mask_slick = cv2.GaussianBlur(mask_slick, (13, 13), 0)
-            sar[mask_slick > 80] = np.clip(sar[mask_slick > 80] * 0.28, 12, 45)
-
-            # Convert to 3-band RGB image
-            img_rgb = cv2.cvtColor(sar, cv2.COLOR_GRAY2RGB)
-
-            # Add metallic vessel corner-reflector targets (intense white dots)
-            vessel1_pos = (int(width * 0.44), int(height * 0.34))
-            vessel2_pos = (int(width * 0.26), int(height * 0.64))
-            cv2.circle(img_rgb, vessel1_pos, 4, (255, 255, 255), -1)
-            cv2.line(img_rgb, vessel1_pos, (vessel1_pos[0] - 12, vessel1_pos[1] - 8), (220, 220, 220), 1)
-            cv2.circle(img_rgb, vessel2_pos, 3, (255, 255, 255), -1)
-
-            # Add subtle SAR coordinate grid lines
-            for x in range(100, width, 120):
-                cv2.line(img_rgb, (x, 0), (x, height), (55, 65, 75), 1, cv2.LINE_AA)
-            for y in range(100, height, 120):
-                cv2.line(img_rgb, (0, y), (width, y), (55, 65, 75), 1, cv2.LINE_AA)
-
-            return img_rgb
-
-        else:
-            # --- SENTINEL-2 OPTICAL MULTISPECTRAL RENDERING ---
-            img_rgb = np.zeros((height, width, 3), dtype=np.uint8)
-            # True Color Ocean (RGB: Deep Marine Blue)
-            img_rgb[:, :, 0] = np.random.normal(15, 3, (height, width))  # R
-            img_rgb[:, :, 1] = np.random.normal(55, 5, (height, width))  # G
-            img_rgb[:, :, 2] = np.random.normal(110, 6, (height, width)) # B
-
-            # Shallow coastal waters & sediment plumes (Turquoise)
-            mask_shallow = np.zeros((height, width), dtype=np.uint8)
-            cv2.fillPoly(mask_shallow, [coast_pts], 255)
-            mask_shallow = cv2.GaussianBlur(mask_shallow, (85, 85), 0)
-            
-            shallow_mask = (mask_shallow > 40) & (mask_shallow <= 180)
-            img_rgb[shallow_mask, 0] = 25
-            img_rgb[shallow_mask, 1] = 115
-            img_rgb[shallow_mask, 2] = 145
-
-            # Mangrove coastal landmass (Forest Green & Tan Shore)
-            land_mask = mask_shallow > 180
-            img_rgb[land_mask, 0] = 35  # R
-            img_rgb[land_mask, 1] = 85  # G
-            img_rgb[land_mask, 2] = 45  # B
-
-            # Optical Anomaly Patch Rendering according to anomaly class
-            mask_slick = np.zeros((height, width), dtype=np.uint8)
-            cv2.fillPoly(mask_slick, [slick_pts], 255)
-            mask_slick = cv2.GaussianBlur(mask_slick, (15, 15), 0)
-            slick_indices = mask_slick > 60
-
-            if "FLOATING" in atype:
-                # Floating material candidate: Bright optical reflection / yellow-green sheen
-                img_rgb[slick_indices, 0] = 220 # R
-                img_rgb[slick_indices, 1] = 190 # G
-                img_rgb[slick_indices, 2] = 40  # B
-            elif "TURBIDITY" in atype:
-                # High Turbidity: Muddy estuarine sediment plume
-                img_rgb[slick_indices, 0] = 180 # R
-                img_rgb[slick_indices, 1] = 130 # G
-                img_rgb[slick_indices, 2] = 60  # B
-            else:
-                # Oil-like anomaly / Surface anomaly: Dark optical sheen with iridescent border
-                img_rgb[slick_indices, 0] = 12  # R
-                img_rgb[slick_indices, 1] = 32  # G
-                img_rgb[slick_indices, 2] = 52  # B
-
-            # Add vessel optical wake trails
-            vpos = (int(width * 0.44), int(height * 0.34))
-            cv2.circle(img_rgb, vpos, 3, (240, 240, 240), -1)
-            cv2.line(img_rgb, vpos, (vpos[0] - 18, vpos[1] - 12), (180, 210, 230), 2)
-
-            # Add optical coordinate grid lines
-            for x in range(100, width, 120):
-                cv2.line(img_rgb, (x, 0), (x, height), (30, 75, 110), 1, cv2.LINE_AA)
-            for y in range(100, height, 120):
-                cv2.line(img_rgb, (0, y), (width, y), (30, 75, 110), 1, cv2.LINE_AA)
-
-            return img_rgb
-
-    def generate_synthetic_scene_image(
-        self,
-        width: int = 512,
-        height: int = 512,
-        mission: str = "Sentinel-2",
-        anomaly_type: Optional[str] = None,
-        lat: float = 21.145,
-        lon: float = 72.620
-    ) -> np.ndarray:
-        """Alias wrapper for fetch_real_satellite_image."""
-        return self.fetch_real_satellite_image(lat=lat, lon=lon, width=width, height=height, mission=mission, anomaly_type=anomaly_type)
