@@ -60,6 +60,7 @@ async def run_monitoring_cycle(
     processed_count = 0
     new_incidents_count = 0
     updated_incidents_count = 0
+    affected_incident_ids = set()
 
     for scene in scenes:
         prod_id = scene["product_id"]
@@ -312,11 +313,14 @@ async def run_monitoring_cycle(
             ))
 
         db.commit()
+        affected_incident_ids.add(target_incident.id)
 
-        # Real-time Supabase Cloud Sync at creation/update time
+    # Real-time Supabase Cloud Sync ONCE per affected incident after scan cycle finishes
+    if affected_incident_ids:
         try:
             from app.services.supabase_service import SupabaseSyncService
-            SupabaseSyncService.sync_incident(db, target_incident.id)
+            for inc_id in affected_incident_ids:
+                SupabaseSyncService.sync_incident(db, inc_id)
         except Exception:
             pass
 

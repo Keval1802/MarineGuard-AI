@@ -1,4 +1,5 @@
 import os
+import io
 import cv2
 import httpx
 from datetime import datetime, timedelta
@@ -18,6 +19,7 @@ class CopernicusCatalogService:
     def __init__(self):
         self.stac_url = "https://sh.dataspace.copernicus.eu/api/v1/catalog/1.0.0/search"
         self.auth_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+        self._image_cache: Dict[Tuple, np.ndarray] = {}
 
     async def _get_auth_token(self) -> Optional[str]:
         """Obtains OAuth2 Bearer Access Token using CDSE Client Credentials."""
@@ -136,6 +138,10 @@ class CopernicusCatalogService:
         If offline or API response is unavailable, generates high-fidelity satellite imagery
         rendering distinct Sentinel-1 SAR VV backscatter or Sentinel-2 Optical multi-spectral imagery.
         """
+        cache_key = (round(lat, 3), round(lon, 3), width, height, mission, anomaly_type)
+        if cache_key in self._image_cache:
+            return self._image_cache[cache_key]
+
         client_id = settings.CDSE_CLIENT_ID
         client_secret = settings.CDSE_CLIENT_SECRET
 
@@ -178,20 +184,21 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
 
                     p_resp = httpx.post("https://sh.dataspace.copernicus.eu/api/v1/process", json=p_body, headers=headers, timeout=60.0)
                     if p_resp.status_code == 200 and len(p_resp.content) > 1000:
-                        from PIL import Image
-                        import io
-                        pil_img = Image.open(io.BytesIO(p_resp.content)).convert("RGB")
-                        print(f"[CopernicusCatalogService] Live {mission} image successfully downloaded from space ({len(p_resp.content)} bytes).")
-                        return np.array(pil_img)
+                        pil_img = Image.open(io.BytesIO(p_resp.content))
+                        arr = np.array(pil_img)
+                        self._image_cache[cache_key] = arr
+                        return arr
                     else:
                         print(f"[CopernicusCatalogService] Process API returned status {p_resp.status_code}: {p_resp.text[:200]}")
             except Exception as e:
                 print(f"[CopernicusCatalogService] Live Process API fetch notice: {e}")
 
         # High-resolution authentic satellite rendering engine for Sentinel-1 & Sentinel-2
-        return self._generate_realistic_satellite_scene(
+        arr = self._generate_realistic_satellite_scene(
             width=width, height=height, lat=lat, lon=lon, mission=mission, anomaly_type=anomaly_type
         )
+        self._image_cache[cache_key] = arr
+        return arr
 
     def _generate_realistic_satellite_scene(
         self,

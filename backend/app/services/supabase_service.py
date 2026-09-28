@@ -69,6 +69,7 @@ class SupabaseSyncService:
 
             # 2. Upsert Satellite Observations & Upload Images
             obs_list = db.query(SatelliteObservation).filter(SatelliteObservation.incident_id == inc.id).all()
+            uploaded_files = set()
             for obs in obs_list:
                 obs_payload = {
                     "id": obs.id,
@@ -87,11 +88,13 @@ class SupabaseSyncService:
                 }
                 client.table("satellite_observations").upsert(obs_payload).execute()
 
-                # Upload image files to Supabase Storage Bucket
+                # Upload image files to Supabase Storage Bucket (Deduplicated)
                 for path_attr in ["image_path", "annotated_image_path", "before_after_image_path"]:
                     rel_path = getattr(obs, path_attr, None)
                     if rel_path:
                         fname = os.path.basename(rel_path)
+                        if fname in uploaded_files:
+                            continue
                         local_file = os.path.join(settings.LOCAL_STORAGE_DIR, fname)
                         if os.path.exists(local_file):
                             try:
@@ -101,6 +104,7 @@ class SupabaseSyncService:
                                         file=f.read(),
                                         file_options={"content-type": "image/png", "x-upsert": "true"}
                                     )
+                                uploaded_files.add(fname)
                                 print(f"[SupabaseSyncService] Real-time uploaded image {fname} to Supabase Storage")
                             except Exception as img_err:
                                 pass
