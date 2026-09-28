@@ -22,7 +22,7 @@ jobs:
       SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      ALERT_EMAIL_RECIPIENT: ${{ secrets.ALERT_EMAIL_RECIPIENT || 'alerts@marineguard.ai' }}
+      ALERT_EMAIL_RECIPIENT: ${{ secrets.ALERT_EMAIL_RECIPIENT || 'keval8532@gmail.com' }}
 
     steps:
       - name: Checkout Code
