@@ -1,9 +1,0 @@
-MARITIME PORT POLLUTION CONTROL & INVESTIGATION REGULATIONS
-------------------------------------------------------------
-Section 1: Hazira & Magdalla Port Authority Regulations
-1. Ballast Water & Bilge Discharge: Unauthorized discharge of oily bilge water, ballast water, or tank washings within 12 nautical miles of Hazira Port approaches is strictly prohibited under Indian Merchant Shipping Act and MARPOL Annex I/II.
-2. Industrial Coastal Discharges: Chemical processing plants and petrochemical facilities along the Hazira industrial corridor must comply with CPCB water quality standards. Turbid effluent discharges into the Tapi river channel during low tide are subject to mandatory monitoring.
-
-Section 2: Investigation Procedures & Candidate Attribution
-1. Operational Principles: Remote sensing anomalies and AIS tracking identify candidate vessels or candidate discharge points for further physical verification. System findings must be classified as "candidate source" or "possible source" until physical water sampling confirms pollutant fingerprint matching.
-2. Official Dispatch: Upon high-priority alert generation (Priority Score >= 0.60), notifications are routed to the Gujarat Maritime Board (GMB) and Coast Guard District Headquarters for physical inspection dispatch.
