@@ -18,14 +18,7 @@ export default function IncidentCard({ incident }: IncidentCardProps) {
 
   const riskLevel = getRiskLevel(incident.priority_score);
 
-  const getLocationName = (lat: number, lon: number, dbLocName?: string) => {
-    if (dbLocName && dbLocName !== "Unknown Marine Region" && !dbLocName.includes("Coastal Sector (") && !dbLocName.includes("Offshore Sector (")) {
-      return dbLocName;
-    }
-    return dbLocName && dbLocName !== "Unknown Marine Region" ? dbLocName : "Coastal Marine Region";
-  };
-
-  const locationName = getLocationName(incident.latitude, incident.longitude, incident.location_name);
+  const locationName = incident.location_name || "Marine Sector";
 
   return (
     <div className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-5 transition-all shadow-md hover:shadow-xl group">

@@ -38,6 +38,12 @@ def get_incidents(
             
             res = query_builder.order("last_updated", desc=True).limit(limit).execute()
             if res.data and len(res.data) > 0:
+                from app.environmental.gis import GISService
+                for item in res.data:
+                    if not item.get("location_name") or item.get("location_name") == "Unknown Marine Region" or "Coastal Sector (" in str(item.get("location_name")):
+                        lat = item.get("latitude", 21.145)
+                        lon = item.get("longitude", 72.620)
+                        item["location_name"] = GISService.get_location_name(lat, lon)
                 return res.data
     except Exception as sp_err:
         print(f"[Incidents API] Supabase Cloud query notice: {sp_err}")
@@ -52,6 +58,10 @@ def get_incidents(
         query = query.filter(Incident.priority_score >= min_priority)
 
     incidents = query.order_by(Incident.last_updated.desc()).limit(limit).all()
+    from app.environmental.gis import GISService
+    for inc in incidents:
+        if not inc.location_name or inc.location_name == "Unknown Marine Region" or "Coastal Sector (" in str(inc.location_name):
+            inc.location_name = GISService.get_location_name(inc.latitude, inc.longitude)
     return incidents
 
 @router.get("/{incident_id}", response_model=IncidentDetailResponse)
@@ -70,7 +80,13 @@ def get_incident_detail(
             if not res.data:
                 res = client.table("incidents").select("*").eq("incident_code", incident_id).execute()
             if res.data and len(res.data) > 0:
-                return res.data[0]
+                item = res.data[0]
+                if not item.get("location_name") or item.get("location_name") == "Unknown Marine Region" or "Coastal Sector (" in str(item.get("location_name")):
+                    from app.environmental.gis import GISService
+                    lat = item.get("latitude", 21.145)
+                    lon = item.get("longitude", 72.620)
+                    item["location_name"] = GISService.get_location_name(lat, lon)
+                return item
     except Exception as sp_err:
         print(f"[Incidents API Detail] Supabase Cloud detail query notice: {sp_err}")
 
@@ -81,6 +97,10 @@ def get_incident_detail(
 
     if not incident:
         raise HTTPException(status_code=404, detail=f"Incident '{incident_id}' not found")
+
+    if not incident.location_name or incident.location_name == "Unknown Marine Region" or "Coastal Sector (" in str(incident.location_name):
+        from app.environmental.gis import GISService
+        incident.location_name = GISService.get_location_name(incident.latitude, incident.longitude)
 
     return incident
 

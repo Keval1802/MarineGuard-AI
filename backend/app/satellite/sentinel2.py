@@ -39,6 +39,10 @@ class Sentinel2Analyzer:
 
         high_fmi_mask = ((fmi > max(1.1, thresh)) & (water_mask == 1) & (~is_cloud)).astype(np.uint8) * 255
         
+        # Morphological closing to merge nearby floating candidate pixels
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        high_fmi_mask = cv2.morphologyEx(high_fmi_mask, cv2.MORPH_CLOSE, kernel)
+
         contours, _ = cv2.findContours(high_fmi_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if not contours:
@@ -49,8 +53,9 @@ class Sentinel2Analyzer:
                 "detection_method": "floating_debris_index"
             }
 
+        total_pixels = float(np.count_nonzero(high_fmi_mask))
         largest_cnt = max(contours, key=cv2.contourArea)
-        area_px = float(cv2.contourArea(largest_cnt))
+        area_px = max(float(cv2.contourArea(largest_cnt)), total_pixels)
 
         if area_px < 15:
             return {
