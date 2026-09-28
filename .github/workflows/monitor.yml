@@ -18,6 +18,11 @@ jobs:
       PYTHONPATH: backend
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL_RECIPIENT: ${{ secrets.ALERT_EMAIL_RECIPIENT }}
 
     steps:
       - name: Checkout Code
@@ -45,6 +50,10 @@ jobs:
       - name: Run Pytest Test Suite
         run: |
           pytest backend/tests/
+
+      - name: Execute Monitoring Scan & Dispatch Alert Email
+        run: |
+          python -c "import asyncio, sys; sys.path.insert(0, 'backend'); from app.database import SessionLocal, Base, engine; Base.metadata.create_all(bind=engine); from app.api.monitoring import run_monitoring_cycle; db = SessionLocal(); res = asyncio.run(run_monitoring_cycle(latitude=21.145, longitude=72.620, db=db, current_user={'role': 'admin'})); print('Scan Completed & Alert Email Dispatched:', res)"
 
       - name: Upload Evidence Artifacts
         uses: actions/upload-artifact@v4
