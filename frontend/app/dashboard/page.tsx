@@ -99,11 +99,11 @@ export default function DashboardPage() {
 
         <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
           <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold uppercase">System Mode</span>
-            <Activity className="w-5 h-5 text-amber-400" />
+            <span className="text-xs font-semibold uppercase">System Status</span>
+            <Activity className="w-5 h-5 text-emerald-400" />
           </div>
-          <p className="text-xl font-bold text-slate-100">Development</p>
-          <span className="text-xs text-amber-400 font-mono">Zero-Cost Prototype</span>
+          <p className="text-xl font-bold text-slate-100">Operational</p>
+          <span className="text-xs text-emerald-400 font-mono">Live Monitoring Active</span>
         </div>
 
       </div>
