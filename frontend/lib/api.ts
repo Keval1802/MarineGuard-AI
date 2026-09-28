@@ -18,6 +18,44 @@ const defaultHeaders = () => ({
   "Authorization": getAuthToken(),
 });
 
+async function enrichIncidentsWithLocationNames(incidents: Incident[]): Promise<Incident[]> {
+  try {
+    const locRes = await fetch(`${SUPABASE_URL}/rest/v1/location_documents?select=location_name,latitude,longitude`, {
+      headers: supabaseHeaders(),
+      cache: "no-store"
+    });
+    let locDocs: any[] = [];
+    if (locRes.ok) {
+      locDocs = await locRes.json();
+    }
+    return incidents.map((inc) => {
+      if (!inc.location_name || inc.location_name === "Unknown Marine Region" || inc.location_name.includes("Coastal Sector (")) {
+        let bestName = "";
+        let minDist = 1.5; // ~150 km max delta
+        for (const doc of locDocs) {
+          if (doc.location_name && doc.latitude !== undefined && doc.longitude !== undefined) {
+            if (!doc.location_name.includes("Sector (") && doc.location_name !== "Unknown Marine Region") {
+              const dLat = Math.abs(inc.latitude - doc.latitude);
+              const dLon = Math.abs(inc.longitude - doc.longitude);
+              const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+              if (dist < minDist) {
+                minDist = dist;
+                bestName = doc.location_name;
+              }
+            }
+          }
+        }
+        if (bestName) {
+          inc.location_name = bestName;
+        }
+      }
+      return inc;
+    });
+  } catch {
+    return incidents;
+  }
+}
+
 export const api = {
   async getHealth(): Promise<SystemHealth> {
     try {
@@ -52,6 +90,7 @@ export const api = {
   },
 
   async getIncidents(statusFilter?: string): Promise<Incident[]> {
+    let incidents: Incident[] = [];
     // 1. Fetch directly from Supabase Cloud REST API (Primary Data Source)
     try {
       let supabaseUrl = `${SUPABASE_URL}/rest/v1/incidents?select=*,satellite_observations(*),weather_observations(*),ocean_observations(*),candidate_sources(*),predicted_paths(*),affected_areas(*)&order=last_updated.desc`;
@@ -67,7 +106,7 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          return data;
+          incidents = data;
         }
       }
     } catch (error) {
@@ -75,20 +114,23 @@ export const api = {
     }
 
     // 2. Fallback to FastAPI Backend API if Supabase REST table is empty
-    try {
-      const url = new URL(`${API_BASE_URL}/api/v1/incidents`);
-      if (statusFilter && statusFilter !== "ALL") url.searchParams.append("status", statusFilter);
+    if (incidents.length === 0) {
+      try {
+        const url = new URL(`${API_BASE_URL}/api/v1/incidents`);
+        if (statusFilter && statusFilter !== "ALL") url.searchParams.append("status", statusFilter);
 
-      const res = await fetch(url.toString(), { headers: defaultHeaders(), cache: "no-store" });
-      if (res.ok) return await res.json();
-    } catch (error) {
-      console.error("Error fetching incidents from backend:", error);
+        const res = await fetch(url.toString(), { headers: defaultHeaders(), cache: "no-store" });
+        if (res.ok) incidents = await res.json();
+      } catch (error) {
+        console.error("Error fetching incidents from backend:", error);
+      }
     }
 
-    return [];
+    return await enrichIncidentsWithLocationNames(incidents);
   },
 
   async getIncidentDetail(id: string): Promise<Incident> {
+    let incident: Incident | null = null;
     // 1. Fetch directly from Supabase Cloud REST API by ID or incident_code
     try {
       const isUuid = id.includes("-");
@@ -103,7 +145,7 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
-          return data[0];
+          incident = data[0];
         }
       }
     } catch (error) {
@@ -111,13 +153,22 @@ export const api = {
     }
 
     // 2. Fallback to backend API
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${id}`, { headers: defaultHeaders() });
-      if (res.ok) return await res.json();
-    } catch {
-      const list = await this.getIncidents();
-      return list[0];
+    if (!incident) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/incidents/${id}`, { headers: defaultHeaders() });
+        if (res.ok) incident = await res.json();
+      } catch {
+        const list = await this.getIncidents();
+        incident = list[0];
+      }
     }
+
+    if (!incident) {
+      throw new Error(`Incident '${id}' not found`);
+    }
+
+    const enriched = await enrichIncidentsWithLocationNames([incident]);
+    return enriched[0];
   },
 
   async submitCitizenReport(data: CitizenReport): Promise<any> {
