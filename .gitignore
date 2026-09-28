@@ -28,6 +28,7 @@ backend/data/
 
 # Scratch & Temporary Files
 scratch/
+rag-assets/
 
 # IDE / OS
 .vscode/

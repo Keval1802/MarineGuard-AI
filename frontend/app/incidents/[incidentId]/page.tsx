@@ -84,27 +84,14 @@ export default function IncidentDetailPage() {
   const riskLevel = getRiskLevel(incident.priority_score);
   const satObs = incident.satellite_observations?.[0];
 
-  const getLocationName = (lat: number, lon: number, code: string, dbLocName?: string) => {
-    if (dbLocName && dbLocName !== "Unknown Marine Region") return dbLocName;
-    if (lat >= 29.8 && lat <= 31.0 && lon >= 32.1 && lon <= 32.6) {
-      return "Great Bitter Lake, Suez Canal, Egypt";
+  const getLocationName = (lat: number, lon: number, dbLocName?: string) => {
+    if (dbLocName && dbLocName !== "Unknown Marine Region" && !dbLocName.includes("Coastal Sector (") && !dbLocName.includes("Offshore Sector (")) {
+      return dbLocName;
     }
-    if (lat >= 12.0 && lat <= 13.5 && lon >= 100.0 && lon <= 101.5) {
-      return "Gulf of Thailand (Sattahip / Rayong Sector)";
-    }
-    if ((lat >= 13.0 && lat <= 13.5 && lon >= 80.0 && lon <= 80.5) || code.includes("ENNORE")) {
-      return "Ennore Port & Coastal Waters, Chennai";
-    }
-    if (lat >= 20.5 && lat <= 22.0 && lon >= 72.0 && lon <= 73.0) {
-      return "Hazira & Suvali Coastal Sector, Gujarat";
-    }
-    if (lat >= 22.5 && lat <= 23.5 && lon >= 69.5 && lon <= 70.8) {
-      return "Kandla Port & Gulf of Kutch Sector, Gujarat";
-    }
-    return `Coastal Sector (${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E)`;
+    return dbLocName && dbLocName !== "Unknown Marine Region" ? dbLocName : "Coastal Marine Region";
   };
 
-  const locationName = getLocationName(incident.latitude, incident.longitude, incident.incident_code, incident.location_name);
+  const locationName = getLocationName(incident.latitude, incident.longitude, incident.location_name);
 
   // Dynamic Environmental Telemetry
   const weatherObs = incident.weather_observations?.[0];

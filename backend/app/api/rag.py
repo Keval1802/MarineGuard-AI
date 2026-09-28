@@ -77,6 +77,7 @@ def scrape_url_to_rag(
         # Compute safe filename
         safe_name = request.doc_identifier or re.sub(r'[^a-zA-Z0-9_]', '_', request.url.split("//")[-1][:30])
         filename = f"web_{safe_name}.txt"
+        os.makedirs(rag_retriever.corpus_dir, exist_ok=True)
         target_path = os.path.join(rag_retriever.corpus_dir, filename)
 
         file_content = f"SOURCE_URL: {request.url}\nDOCUMENT_NAME: {filename}\n\n{clean_text}"

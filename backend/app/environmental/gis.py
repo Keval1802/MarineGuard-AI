@@ -282,55 +282,98 @@ class GISService:
     @classmethod
     def get_location_name(cls, lat: float, lon: float) -> str:
         """
-        Converts latitude and longitude into a clear, human-memorable location/area name.
+        Converts latitude and longitude into a clear, human-memorable location/area name DYNAMICALLY.
+        1. First queries Supabase 'location_documents' table for nearest location record (< 100 km).
+        2. If unavailable, performs dynamic reverse geocoding via OpenStreetMap API / Regional lookup.
+        3. Persists newly resolved location knowledge into Supabase 'location_documents' table.
         """
-        if 29.8 <= lat <= 31.0 and 32.1 <= lon <= 32.6:
-            if 30.3 <= lat <= 30.55:
-                return "Great Bitter Lake, Suez Canal, Egypt"
-            elif lat > 30.55:
-                return "El Qantara & Northern Suez Canal, Egypt"
+        # 1. Query Supabase Cloud location_documents table for nearest coordinate match (< 100 km)
+        try:
+            from app.services.supabase_service import SupabaseSyncService
+            client = SupabaseSyncService.get_client()
+            if client:
+                res = client.table("location_documents").select("location_name, latitude, longitude").execute()
+                if res and res.data:
+                    best_match = None
+                    min_dist = 100.0 # km radius
+                    for doc in res.data:
+                        d_lat = doc.get("latitude")
+                        d_lon = doc.get("longitude")
+                        loc_name = doc.get("location_name")
+                        if d_lat is not None and d_lon is not None and loc_name:
+                            if "Sector (" not in loc_name and "Offshore Sector (" not in loc_name and "Unknown" not in loc_name and loc_name != "Coastal Marine Region":
+                                dist = cls.haversine_distance(lat, lon, d_lat, d_lon)
+                                if dist < min_dist:
+                                    min_dist = dist
+                                    best_match = loc_name
+                    if best_match:
+                        return best_match
+        except Exception:
+            pass
+
+        # 2. Known Major Maritime Regions Lookup (Fallback if not yet in location_documents)
+        if 30.5 <= lat <= 32.2 and 120.5 <= lon <= 122.5:
+            resolved_name = "Shanghai Port / Yangtze Estuary, China"
+        elif 20.5 <= lat <= 21.6 and 72.3 <= lon <= 72.9:
+            resolved_name = "Hazira Port & Marine Channel, Surat, Gujarat"
+        elif 13.0 <= lat <= 13.6 and 80.1 <= lon <= 80.6:
+            resolved_name = "Ennore Port & Kamarajar Channel, Chennai, Tamil Nadu"
+        elif 29.5 <= lat <= 31.5 and 32.0 <= lon <= 32.7:
+            resolved_name = "Great Bitter Lake, Suez Canal, Egypt"
+        elif 22.0 <= lat <= 23.5 and 68.5 <= lon <= 71.0:
+            resolved_name = "Dwarka & Okha Sector, Gulf of Kutch, Gujarat"
+        elif 18.7 <= lat <= 19.4 and 72.6 <= lon <= 73.1:
+            resolved_name = "Mumbai Harbor & JNPT Channel, Maharashtra"
+        elif 12.0 <= lat <= 13.5 and 100.0 <= lon <= 101.8:
+            resolved_name = "Sattahip & Pattaya Coastal Sector, Upper Gulf of Thailand"
+        else:
+            resolved_name = None
+
+        # 3. Dynamic Reverse Geocoding via OpenStreetMap Nominatim API if region lookup did not match
+        if not resolved_name:
+            try:
+                import httpx
+                resp = httpx.get(
+                    "https://nominatim.openstreetmap.org/reverse",
+                    params={"format": "json", "lat": lat, "lon": lon},
+                    headers={"User-Agent": "MarineGuard-AI/2.0", "Accept-Language": "en"},
+                    timeout=4.0
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    addr = data.get("address", {})
+                    parts = []
+                    loc_part = (
+                        addr.get("harbour") or addr.get("port") or addr.get("bay") or 
+                        addr.get("suburb") or addr.get("city_district") or addr.get("city") or 
+                        addr.get("town") or addr.get("county") or addr.get("state")
+                    )
+                    country_part = addr.get("country")
+                    
+                    if loc_part:
+                        parts.append(str(loc_part))
+                    if country_part and country_part not in parts:
+                        parts.append(str(country_part))
+
+                    if parts:
+                        resolved_name = ", ".join(parts)
+            except Exception as geonames_err:
+                print(f"[GISService] Dynamic geocoding notice: {geonames_err}")
+
+        # Final fallback to nearest coastal asset
+        if not resolved_name:
+            nearby = cls.get_nearby_assets(lat, lon, max_distance_km=40.0)
+            if nearby and nearby[0]["distance_km"] < 35.0:
+                resolved_name = f"{nearby[0]['name']} Sector"
             else:
-                return "Suez Port & Southern Canal Channel, Egypt"
-        elif 31.0 < lat <= 31.6 and 32.0 <= lon <= 32.6:
-            return "Port Said Anchorage, Mediterranean Sea, Egypt"
-        elif 27.5 <= lat < 29.8 and 32.5 <= lon <= 34.0:
-            return "Gulf of Suez Shipping Corridor, Red Sea, Egypt"
+                resolved_name = f"Coastal Sector ({lat:.2f}° N, {lon:.2f}° E)"
 
-        elif 20.8 <= lat <= 21.4 and 72.4 <= lon <= 72.8:
-            return "Hazira Coast & Tapi Estuary, Surat, Gujarat, India"
-        elif 21.4 < lat <= 22.0 and 72.2 <= lon <= 72.9:
-            return "Dahej Industrial Coast, Gulf of Khambhat, Gujarat, India"
-        elif 20.2 <= lat < 20.8 and 72.5 <= lon <= 73.0:
-            return "Daman Coastal Marine Sector, India"
+        # 4. Persist newly resolved location knowledge into Supabase location_documents table
+        try:
+            from app.services.location_scraper_service import LocationScraperService
+            LocationScraperService.scrape_and_store_location_knowledge(resolved_name, lat, lon)
+        except Exception as scrape_err:
+            print(f"[GISService] Location knowledge persistence notice: {scrape_err}")
 
-        elif 22.8 <= lat <= 23.4 and 69.8 <= lon <= 70.6:
-            return "Kandla Port & Deendayal Track, Gulf of Kutch, Gujarat, India"
-        elif 22.0 <= lat <= 22.6 and 68.8 <= lon <= 69.4:
-            return "Dwarka & Okha Coastal Sector, Gulf of Kutch, Gujarat, India"
-        elif 22.2 <= lat < 22.8 and 69.0 <= lon <= 70.0:
-            return "Mundra & Sikka Marine Reserve Sector, Gulf of Kutch, Gujarat, India"
-
-        elif 13.1 <= lat <= 13.5 and 80.2 <= lon <= 80.5:
-            return "Ennore Creek & Kamarajar Port Track, Chennai, Tamil Nadu, India"
-        elif 12.8 <= lat < 13.1 and 80.2 <= lon <= 80.4:
-            return "Chennai Port & Marina Coastal Zone, Tamil Nadu, India"
-
-        elif 18.85 <= lat <= 19.02 and 72.80 <= lon <= 72.98:
-            return "Mumbai Harbor & JNPT Channel, Mumbai, Maharashtra, India"
-        elif 19.02 < lat <= 19.4 and 72.7 <= lon <= 73.0:
-            return "Juhu Chopati & Bandra Coastal Sector, Mumbai, Maharashtra, India"
-
-        elif 12.3 <= lat <= 13.2 and 100.6 <= lon <= 101.5:
-            return "Sattahip & Pattaya Coastal Channel, Upper Gulf of Thailand"
-
-        elif 24.5 <= lat <= 26.5 and 90.0 <= lon <= 93.0:
-            return "Khasi Hills & Umiam Reservoir Sector, Meghalaya, India"
-
-        nearby = cls.get_nearby_assets(lat, lon, max_distance_km=30.0)
-        if nearby and nearby[0]["distance_km"] < 25.0:
-            return f"{nearby[0]['name']} Sector ({nearby[0]['distance_km']:.1f} km)"
-
-        ns = "N" if lat >= 0 else "S"
-        ew = "E" if lon >= 0 else "W"
-        return f"Offshore Sector ({abs(lat):.2f}° {ns}, {abs(lon):.2f}° {ew})"
+        return resolved_name
 

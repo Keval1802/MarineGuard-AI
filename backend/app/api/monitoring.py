@@ -137,6 +137,7 @@ async def run_monitoring_cycle(
             # Merge into existing incident: Update current known location (Section 21)
             target_incident.latitude = lat
             target_incident.longitude = lon
+            target_incident.location_name = GISService.get_location_name(lat, lon)
             target_incident.last_updated = datetime.utcnow()
             target_incident.anomaly_type = det_class
             updated_incidents_count += 1
@@ -150,6 +151,7 @@ async def run_monitoring_cycle(
                 anomaly_type=det_class,
                 latitude=lat,
                 longitude=lon,
+                location_name=GISService.get_location_name(lat, lon),
                 first_detected=datetime.utcnow(),
                 last_updated=datetime.utcnow(),
                 status=IncidentStatus.DETECTED.value
@@ -169,22 +171,26 @@ async def run_monitoring_cycle(
             longitude=lon
         )
 
-        # Record Satellite Observation
-        sat_obs = SatelliteObservation(
-            incident_id=target_incident.id,
-            mission=scene["mission"],
-            product_id=prod_id,
-            acquisition_time=datetime.utcnow(),
-            cloud_cover=scene["cloud_cover"],
-            image_path=image_paths["raw_image_path"],
-            annotated_image_path=image_paths["annotated_image_path"],
-            before_after_image_path=image_paths["before_after_image_path"],
-            model_result=det_class,
-            detection_method=detection["detection_method"],
-            wind_speed_ms=detection.get("wind_speed_ms"),
-            confidence=det_conf
-        )
-        db.add(sat_obs)
+        # Record Satellite Observation (Deduplicated per product_id)
+        existing_sat_obs = db.query(SatelliteObservation).filter_by(
+            incident_id=target_incident.id, product_id=prod_id
+        ).first()
+        if not existing_sat_obs:
+            sat_obs = SatelliteObservation(
+                incident_id=target_incident.id,
+                mission=scene["mission"],
+                product_id=prod_id,
+                acquisition_time=datetime.utcnow(),
+                cloud_cover=scene["cloud_cover"],
+                image_path=image_paths["raw_image_path"],
+                annotated_image_path=image_paths["annotated_image_path"],
+                before_after_image_path=image_paths["before_after_image_path"],
+                model_result=det_class,
+                detection_method=detection["detection_method"],
+                wind_speed_ms=detection.get("wind_speed_ms"),
+                confidence=det_conf
+            )
+            db.add(sat_obs)
 
         # Record Weather & Ocean Observations
         weather_obs = WeatherObservation(
@@ -206,7 +212,8 @@ async def run_monitoring_cycle(
         )
         db.add(ocean_obs)
 
-        # Calculate Trajectory (Section 24)
+        # Calculate Trajectory (Section 24) - Clear previous predicted paths to avoid duplicates
+        db.query(PredictedPath).filter_by(incident_id=target_incident.id).delete()
         trajectory_pts = TrajectoryService.calculate_drift_trajectory(
             lat=lat, lon=lon, anomaly_type=det_class,
             current_speed_ms=ocean_data["current_speed_ms"],
@@ -223,7 +230,7 @@ async def run_monitoring_cycle(
                 uncertainty=pt["uncertainty_km"]
             ))
 
-        # Calculate Origin Zone & Candidate Sources (Section 23)
+        # Calculate Origin Zone & Candidate Sources (Section 23) - Deduplicated by reference
         reverse_zone = TrajectoryService.calculate_reverse_origin_zone(
             lat=lat, lon=lon, anomaly_type=det_class,
             current_speed_ms=ocean_data["current_speed_ms"],
@@ -233,13 +240,17 @@ async def run_monitoring_cycle(
         )
         nearby_gis = GISService.get_nearby_assets(reverse_zone["origin_latitude"], reverse_zone["origin_longitude"], max_distance_km=10.0)
         for gis_item in nearby_gis[:2]:
-            db.add(CandidateSource(
-                incident_id=target_incident.id,
-                source_type=gis_item["type"],
-                reference=gis_item["name"],
-                confidence="moderate",
-                evidence_json={"distance_km": gis_item["distance_km"]}
-            ))
+            existing_cs = db.query(CandidateSource).filter_by(
+                incident_id=target_incident.id, reference=gis_item["name"]
+            ).first()
+            if not existing_cs:
+                db.add(CandidateSource(
+                    incident_id=target_incident.id,
+                    source_type=gis_item["type"],
+                    reference=gis_item["name"],
+                    confidence="moderate",
+                    evidence_json={"distance_km": gis_item["distance_km"]}
+                ))
 
         # Calculate Confidence (Section 22)
         conf_res = ConfidenceCalculator.calculate_confidence(
@@ -262,7 +273,8 @@ async def run_monitoring_cycle(
         target_incident.severity_score = risk_res["severity_score"]
         target_incident.priority_score = risk_res["priority_score"]
 
-        # Save Affected GIS Areas (Section 25)
+        # Save Affected GIS Areas (Section 25) - Clear previous affected areas to avoid duplicates
+        db.query(AffectedArea).filter_by(incident_id=target_incident.id).delete()
         for aff in risk_res["affected_areas"]:
             db.add(AffectedArea(
                 incident_id=target_incident.id,

@@ -18,27 +18,14 @@ export default function IncidentCard({ incident }: IncidentCardProps) {
 
   const riskLevel = getRiskLevel(incident.priority_score);
 
-  const getLocationName = (lat: number, lon: number, code: string, dbLocName?: string) => {
-    if (dbLocName && dbLocName !== "Unknown Marine Region") return dbLocName;
-    if (lat >= 29.8 && lat <= 31.0 && lon >= 32.1 && lon <= 32.6) {
-      return "Great Bitter Lake, Suez Canal, Egypt";
+  const getLocationName = (lat: number, lon: number, dbLocName?: string) => {
+    if (dbLocName && dbLocName !== "Unknown Marine Region" && !dbLocName.includes("Coastal Sector (") && !dbLocName.includes("Offshore Sector (")) {
+      return dbLocName;
     }
-    if ((lat >= 13.0 && lat <= 13.5 && lon >= 80.0 && lon <= 80.5) || code.includes("ENNORE")) {
-      return "Ennore Port Sector, Chennai";
-    }
-    if (lat >= 20.5 && lat <= 22.0 && lon >= 72.0 && lon <= 73.0) {
-      return "Surat & Hazira Sector, Gujarat";
-    }
-    if (lat >= 22.5 && lat <= 23.5 && lon >= 69.5 && lon <= 70.8) {
-      return "Kandla & Gulf of Kutch Sector, Gujarat";
-    }
-    if (lat >= 12.0 && lat <= 13.5 && lon >= 100.5 && lon <= 101.5) {
-      return "Sattahip & Pattaya Sector, Thailand";
-    }
-    return `Coastal Sector (${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E)`;
+    return dbLocName && dbLocName !== "Unknown Marine Region" ? dbLocName : "Coastal Marine Region";
   };
 
-  const locationName = getLocationName(incident.latitude, incident.longitude, incident.incident_code, incident.location_name);
+  const locationName = getLocationName(incident.latitude, incident.longitude, incident.location_name);
 
   return (
     <div className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-5 transition-all shadow-md hover:shadow-xl group">

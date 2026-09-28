@@ -24,13 +24,45 @@ class MarineRAGRetriever:
         self._initialize_index()
 
     def _initialize_index(self):
-        """Loads pre-built vector index or ingests corpus if manifest missing."""
-        if not self.vector_store.load_index(self.manifest_path):
-            self.reindex()
+        """Loads pre-built vector index, ingests corpus, or populates built-in maritime SOP guidelines."""
+        if os.path.exists(self.corpus_dir) and os.path.exists(self.manifest_path):
+            if not self.vector_store.load_index(self.manifest_path):
+                self.reindex()
+        else:
+            self._load_default_maritime_guidelines()
+
+    def _load_default_maritime_guidelines(self):
+        """Populates core MARPOL conventions and oil spill SOP guidelines into in-memory vector store."""
+        default_docs = [
+            {
+                "text": "[MARPOL Annex I Regulation 15] Discharge controls for oil and oily mixtures. Ships must operate oily water separators (15 ppm alarm) and maintain Oil Record Book entries.",
+                "source": "MARPOL Annex I / IMO Guidelines",
+                "topic": "MARPOL Regulations"
+            },
+            {
+                "text": "[Coastal Oil Spill Response SOP] For oil spill near mangroves or tidal estuaries, deploy inflatable boom barriers at estuary inlets, apply approved bio-dispersants if wind speed > 2 m/s, and mobilize skimmers.",
+                "source": "National Oil Spill Contingency Plan (NOS-DCP)",
+                "topic": "Oil Spill Response SOP"
+            },
+            {
+                "text": "[Mangrove & Wetland Protection Protocol] Sensitive intertidal mangrove fringes and bird sanctuaries require immediate priority protection with sorbent booms and low-pressure flushing.",
+                "source": "Coastal Zone Management Authority (CZMA)",
+                "topic": "Ecosystem Protection SOP"
+            },
+            {
+                "text": "[Port Authority Spill Mitigation] Industrial port facilities must deploy containment booms around vessel berths, notify Coast Guard Marine Safety Office, and initiate trajectory tracking within 1 hour.",
+                "source": "Port Safety & Pollution Mitigation Guide",
+                "topic": "Port Mitigation SOP"
+            }
+        ]
+        self.vector_store.add_documents(default_docs)
 
     def reindex(self):
-        """Re-ingests corpus directory and updates vector store in memory."""
-        self.vector_store = RAGIngestionPipeline.ingest_corpus_directory(self.corpus_dir, self.manifest_path)
+        """Re-ingests corpus directory and updates vector store in memory if corpus_dir exists."""
+        if os.path.exists(self.corpus_dir):
+            self.vector_store = RAGIngestionPipeline.ingest_corpus_directory(self.corpus_dir, self.manifest_path)
+        else:
+            self._load_default_maritime_guidelines()
 
     def retrieve_guidelines(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
         """General fallback similarity search."""
