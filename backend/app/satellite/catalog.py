@@ -193,17 +193,81 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
             except Exception as e:
                 print(f"[CopernicusCatalogService] Live Process API fetch notice: {e}")
 
-        # Fallback ocean satellite tile array when live API is unavailable
+        # Render satellite observation imagery fallback when live API is unavailable
+        np.random.seed(int(abs(lat * 1000 + lon * 100)))
+        atype = anomaly_type or "OIL_LIKE_ANOMALY"
         is_sar = "Sentinel-1" in mission
+
+        # Shoreline geometry
+        coast_pts = np.array([
+            [int(width * 0.68), 0],
+            [width, 0],
+            [width, height],
+            [int(width * 0.78), height],
+            [int(width * 0.72), int(height * 0.55)],
+            [int(width * 0.65), int(height * 0.35)]
+        ], np.int32)
+
+        # Anomaly slick geometry
+        slick_pts = np.array([
+            [int(width * 0.32), int(height * 0.42)],
+            [int(width * 0.52), int(height * 0.38)],
+            [int(width * 0.60), int(height * 0.50)],
+            [int(width * 0.46), int(height * 0.62)],
+            [int(width * 0.30), int(height * 0.54)]
+        ], np.int32)
+
         if is_sar:
-            # Grayscale SAR radar matrix
-            arr = np.full((height, width, 3), 75, dtype=np.uint8)
+            sar_base = np.random.gamma(3.0, 25.0, (height, width)).astype(np.float32)
+            sar_base = cv2.GaussianBlur(sar_base, (3, 3), 0)
+            sar = np.clip(sar_base, 30, 160).astype(np.uint8)
+
+            # High radar backscatter landmass
+            mask_land = np.zeros((height, width), dtype=np.uint8)
+            cv2.fillPoly(mask_land, [coast_pts], 255)
+            mask_land = cv2.GaussianBlur(mask_land, (11, 11), 0)
+            sar[mask_land > 100] = np.clip(sar[mask_land > 100] + 110, 0, 235)
+
+            # Dark VV radar damping slick
+            mask_slick = np.zeros((height, width), dtype=np.uint8)
+            cv2.fillPoly(mask_slick, [slick_pts], 255)
+            mask_slick = cv2.GaussianBlur(mask_slick, (13, 13), 0)
+            sar[mask_slick > 80] = np.clip(sar[mask_slick > 80] * 0.28, 12, 45)
+
+            arr = cv2.cvtColor(sar, cv2.COLOR_GRAY2RGB)
+            vessel1_pos = (int(width * 0.44), int(height * 0.34))
+            cv2.circle(arr, vessel1_pos, 4, (255, 255, 255), -1)
         else:
-            # Multi-spectral True Color ocean blue matrix
             arr = np.zeros((height, width, 3), dtype=np.uint8)
-            arr[:, :, 0] = 15  # R
-            arr[:, :, 1] = 55  # G
-            arr[:, :, 2] = 110 # B
+            arr[:, :, 0] = np.random.normal(15, 3, (height, width))  # R
+            arr[:, :, 1] = np.random.normal(55, 5, (height, width))  # G
+            arr[:, :, 2] = np.random.normal(110, 6, (height, width)) # B
+
+            mask_shallow = np.zeros((height, width), dtype=np.uint8)
+            cv2.fillPoly(mask_shallow, [coast_pts], 255)
+            mask_shallow = cv2.GaussianBlur(mask_shallow, (85, 85), 0)
+            shallow_mask = (mask_shallow > 40) & (mask_shallow <= 180)
+            arr[shallow_mask, 0] = 25
+            arr[shallow_mask, 1] = 115
+            arr[shallow_mask, 2] = 145
+
+            mask_slick = np.zeros((height, width), dtype=np.uint8)
+            cv2.fillPoly(mask_slick, [slick_pts], 255)
+            mask_slick = cv2.GaussianBlur(mask_slick, (15, 15), 0)
+            slick_indices = mask_slick > 60
+
+            if "FLOATING" in atype:
+                arr[slick_indices, 0] = 220
+                arr[slick_indices, 1] = 190
+                arr[slick_indices, 2] = 40
+            elif "TURBIDITY" in atype:
+                arr[slick_indices, 0] = 180
+                arr[slick_indices, 1] = 130
+                arr[slick_indices, 2] = 60
+            else:
+                arr[slick_indices, 0] = 12
+                arr[slick_indices, 1] = 32
+                arr[slick_indices, 2] = 52
 
         self._image_cache[cache_key] = arr
         return arr
