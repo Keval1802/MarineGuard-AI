@@ -306,7 +306,7 @@ async def run_monitoring_cycle(
         )
 
         # Trigger Email Notification / Alert Queuing (Section 27)
-        img_attachment = image_paths.get("annotated_image_path") or image_paths.get("raw_image_path")
+        img_attachment = image_paths.get("before_after_image_path") or image_paths.get("annotated_image_path") or image_paths.get("raw_image_path")
         alert_res = EmailAlertService.send_incident_alert(
             incident_code=inc_code,
             priority_score=target_incident.priority_score,

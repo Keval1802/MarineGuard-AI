@@ -63,7 +63,23 @@ Notice: Identified candidate release sources represent geographic targets
 for investigation only. MarineGuard AI does not establish legal responsibility.
 """
 
+        # Resolve full physical image file path
+        full_img_path = None
+        if image_path:
+            fname = os.path.basename(image_path)
+            candidate_local = os.path.join(settings.LOCAL_STORAGE_DIR, fname)
+            if os.path.exists(candidate_local):
+                full_img_path = candidate_local
+            elif os.path.exists(image_path):
+                full_img_path = image_path
+
         # 2. HTML Body
+        img_html_block = f"""
+    <div style="margin-top: 20px; text-align: center;">
+      <h4 style="color: #38bdf8; margin-bottom: 8px; text-align: left;">Satellite Visual Evidence</h4>
+      <img src="cid:satellite_image" style="max-width: 100%; border-radius: 8px; border: 1px solid #334155;" alt="Satellite Visual Evidence Patch" />
+    </div>""" if full_img_path else ""
+
         html_content = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -91,6 +107,7 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
 
     <h4 style="color: #38bdf8; margin-bottom: 8px;">Evidence-Grounded Investigation Report</h4>
     <div class="report-box">{report_text or 'No report text generated yet.'}</div>
+{img_html_block}
 
     <div class="footer">
       MarineGuard AI &copy; {datetime.utcnow().year} — Multi-Source Agentic Marine Pollution Early-Warning System<br>
@@ -101,30 +118,27 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
 </html>
 """
 
-        # Prepare MIME Message
-        msg = MIMEMultipart("alternative")
+        # Prepare MIME Message (mixed container allows text/html content + image attachments)
+        msg = MIMEMultipart("mixed")
         msg["Subject"] = subject
         msg["From"] = smtp_user or "alerts@marineguard.ai"
         msg["To"] = target_email
 
-        msg.attach(MIMEText(body_text, "plain"))
-        msg.attach(MIMEText(html_content, "html"))
+        body_part = MIMEMultipart("alternative")
+        body_part.attach(MIMEText(body_text, "plain"))
+        body_part.attach(MIMEText(html_content, "html"))
+        msg.attach(body_part)
 
-        # Attach image if available
-        if image_path:
-            full_img_path = image_path
-            if not os.path.isabs(full_img_path):
-                fname = os.path.basename(image_path)
-                full_img_path = os.path.join(settings.LOCAL_STORAGE_DIR, fname)
-            
-            if os.path.exists(full_img_path):
-                try:
-                    with open(full_img_path, "rb") as img_f:
-                        img_part = MIMEImage(img_f.read(), name=os.path.basename(full_img_path))
-                        img_part.add_header("Content-Disposition", f"attachment; filename=\"{os.path.basename(full_img_path)}\"")
-                        msg.attach(img_part)
-                except Exception as img_err:
-                    logger.warning(f"Could not attach image {full_img_path}: {img_err}")
+        # Attach image inline if available
+        if full_img_path and os.path.exists(full_img_path):
+            try:
+                with open(full_img_path, "rb") as img_f:
+                    img_part = MIMEImage(img_f.read(), name=os.path.basename(full_img_path))
+                    img_part.add_header("Content-ID", "<satellite_image>")
+                    img_part.add_header("Content-Disposition", f"inline; filename=\"{os.path.basename(full_img_path)}\"")
+                    msg.attach(img_part)
+            except Exception as img_err:
+                logger.warning(f"Could not attach image {full_img_path}: {img_err}")
 
         # Check if Gmail credentials are provided
         if not smtp_user or not smtp_password:
