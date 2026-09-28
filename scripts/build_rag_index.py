@@ -7,7 +7,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 from app.rag.ingest import RAGIngestionPipeline
 
 def main():
-    corpus_dir = os.path.join(os.path.dirname(__file__), "..", "rag-assets")
+    backend_dir = os.path.join(os.path.dirname(__file__), "..", "backend")
+    corpus_dir = os.path.join(backend_dir, "storage", "rag")
+    os.makedirs(corpus_dir, exist_ok=True)
     manifest_path = os.path.join(corpus_dir, "manifest.json")
     
     print(f"Building RAG index from corpus directory: {corpus_dir}")
