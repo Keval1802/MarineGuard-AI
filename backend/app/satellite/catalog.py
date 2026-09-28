@@ -257,9 +257,9 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
             slick_indices = mask_slick > 60
 
             if "FLOATING" in atype:
-                arr[slick_indices, 0] = 220
-                arr[slick_indices, 1] = 190
-                arr[slick_indices, 2] = 40
+                arr[slick_indices, 0] = 175
+                arr[slick_indices, 1] = 160
+                arr[slick_indices, 2] = 75
             elif "TURBIDITY" in atype:
                 arr[slick_indices, 0] = 180
                 arr[slick_indices, 1] = 130
