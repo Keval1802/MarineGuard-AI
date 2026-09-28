@@ -61,6 +61,7 @@ async def run_monitoring_cycle(
     new_incidents_count = 0
     updated_incidents_count = 0
     affected_incident_ids = set()
+    affected_incidents_payload: Dict[str, Dict[str, Any]] = {}
 
     for scene in scenes:
         prod_id = scene["product_id"]
@@ -305,30 +306,54 @@ async def run_monitoring_cycle(
             affected_areas=risk_res["affected_areas"]
         )
 
-        # Trigger Email Notification / Alert Queuing (Section 27)
+        db.commit()
         img_attachment = image_paths.get("before_after_image_path") or image_paths.get("annotated_image_path") or image_paths.get("raw_image_path")
+        affected_incidents_payload[target_incident.id] = {
+            "incident": target_incident,
+            "incident_code": inc_code,
+            "anomaly_type": det_class,
+            "risk_level": risk_res["risk_level"],
+            "affected_areas_str": affected_str,
+            "image_path": img_attachment
+        }
+        affected_incident_ids.add(target_incident.id)
+
+    # Section 27 Alert Dispatch Deduplication: Send ONCE per affected incident per monitoring cycle
+    for inc_id, payload in affected_incidents_payload.items():
+        inc = payload["incident"]
+
+        # Check if an email alert was already dispatched for this incident in the last 4 hours
+        four_hours_ago = datetime.utcnow() - timedelta(hours=4)
+        recent_alert = db.query(Alert).filter(
+            Alert.incident_id == inc_id,
+            Alert.alert_type.in_(["EMAIL_ALERT", "HIGH_PRIORITY_EMAIL"]),
+            Alert.created_at >= four_hours_ago
+        ).first()
+
+        # Allow dispatch if no recent alert exists OR if priority score >= 0.85 (critical escalation)
+        if recent_alert and inc.priority_score < 0.85 and not force_anomaly:
+            continue
+
         alert_res = EmailAlertService.send_incident_alert(
-            incident_code=inc_code,
-            priority_score=target_incident.priority_score,
-            risk_level=risk_res["risk_level"],
-            anomaly_type=det_class,
-            confidence_score=target_incident.confidence_score,
-            location_str=target_incident.location_name or f"Hazira Coast ({lat:.3f}, {lon:.3f})",
-            affected_areas_str=affected_str,
-            report_text=target_incident.report,
-            image_path=img_attachment
+            incident_code=payload["incident_code"],
+            priority_score=inc.priority_score,
+            risk_level=payload["risk_level"],
+            anomaly_type=payload["anomaly_type"],
+            confidence_score=inc.confidence_score,
+            location_str=inc.location_name or f"Hazira Coast ({lat:.3f}, {lon:.3f})",
+            affected_areas_str=payload["affected_areas_str"],
+            report_text=inc.report,
+            image_path=payload["image_path"]
         )
         if alert_res["triggered"]:
             db.add(Alert(
-                incident_id=target_incident.id,
+                incident_id=inc_id,
                 alert_type=alert_res["alert_type"],
                 recipient=alert_res["recipient"],
                 status=alert_res["status"],
-                sent_at=datetime.utcnow() if alert_res["status"] == "SENT" else None
+                sent_at=datetime.utcnow() if "SENT" in alert_res.get("status", "") else None
             ))
-
-        db.commit()
-        affected_incident_ids.add(target_incident.id)
+            db.commit()
 
     # Real-time Supabase Cloud Sync ONCE per affected incident after scan cycle finishes
     if affected_incident_ids:
