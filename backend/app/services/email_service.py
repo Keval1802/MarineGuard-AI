@@ -40,8 +40,10 @@ class EmailAlertService:
         loc_str = location_name or "Coastal Marine Region"
         atype_str = anomaly_type or "Pollution Candidate"
         pri_score = priority_score or 0.65
+        dispatch_ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
+        cid_image = f"satellite_image_{incident_code}_{int(datetime.utcnow().timestamp())}"
 
-        subject = f"[MARINEGUARD AI ALERT] Incident Report {incident_code} — {loc_str}"
+        subject = f"[MARINEGUARD AI ALERT] Incident Report {incident_code} — {loc_str} [{datetime.utcnow().strftime('%H:%M UTC')}]"
 
         # 1. Plain Text Body
         body_text = f"""MARINEGUARD AI — INCIDENT INVESTIGATION REPORT
@@ -50,7 +52,7 @@ Incident Reference: {incident_code}
 Location: {loc_str}
 Detected Event: {atype_str}
 Priority Rating: {pri_score:.3f} / 1.000
-Dispatch Timestamp: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}
+Dispatch Timestamp: {dispatch_ts}
 
 ======================================================================
 EXECUTIVE INVESTIGATION REPORT
@@ -77,7 +79,7 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
         img_html_block = f"""
     <div style="margin-top: 20px; text-align: center;">
       <h4 style="color: #38bdf8; margin-bottom: 8px; text-align: left;">Satellite Visual Evidence</h4>
-      <img src="cid:satellite_image" style="max-width: 100%; border-radius: 8px; border: 1px solid #334155;" alt="Satellite Visual Evidence Patch" />
+      <img src="cid:{cid_image}" style="max-width: 100%; border-radius: 8px; border: 1px solid #334155;" alt="Satellite Visual Evidence Patch" />
     </div>""" if full_img_path else ""
 
         html_content = f"""<!DOCTYPE html>
@@ -111,7 +113,8 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
 
     <div class="footer">
       MarineGuard AI &copy; {datetime.utcnow().year} — Multi-Source Agentic Marine Pollution Early-Warning System<br>
-      Notice: Candidate release sources represent investigation targets only.
+      Notice: Candidate release sources represent investigation targets only.<br>
+      <span style="font-size: 9px; color: #475569;">Dispatch Timestamp: {dispatch_ts}</span>
     </div>
   </div>
 </body>
@@ -134,7 +137,7 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
             try:
                 with open(full_img_path, "rb") as img_f:
                     img_part = MIMEImage(img_f.read(), name=os.path.basename(full_img_path))
-                    img_part.add_header("Content-ID", "<satellite_image>")
+                    img_part.add_header("Content-ID", f"<{cid_image}>")
                     img_part.add_header("Content-Disposition", f"inline; filename=\"{os.path.basename(full_img_path)}\"")
                     msg.attach(img_part)
             except Exception as img_err:
