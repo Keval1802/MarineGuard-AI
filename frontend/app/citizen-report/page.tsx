@@ -36,10 +36,7 @@ export default function CitizenReportPage() {
       
       {/* Header */}
       <div className="pb-4 border-b border-slate-800 text-center">
-        <div className="w-12 h-12 rounded-xl bg-marine-500/15 border border-marine-500/30 text-marine-400 flex items-center justify-center mx-auto mb-3">
-          <PlusCircle className="w-6 h-6" />
-        </div>
-        <h1 className="text-2xl font-extrabold text-slate-100">Submit Citizen Observation</h1>
+                <h1 className="text-2xl font-extrabold text-slate-100">Submit Citizen Observation</h1>
         <p className="text-sm text-slate-400">Report suspicious coastal water pollution, sheens, or floating waste along the Gujarat coast.</p>
       </div>
 
