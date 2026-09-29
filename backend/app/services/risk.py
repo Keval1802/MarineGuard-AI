@@ -41,28 +41,44 @@ class RiskCalculator:
         area_factor = min(0.35, (estimated_area_km2 / 10.0) * 0.35)
         severity_score = min(1.0, round(base_sev + area_factor, 2))
 
-        # 3. GIS Nearby Asset Intersections
+        # 3. GIS Nearby Asset Intersections & Biodiversity Sites
         nearby_assets = GISService.get_nearby_assets(latitude, longitude, max_distance_km=20.0)
-        trajectory_intersections = GISService.intersect_trajectory_with_gis(trajectory_points, max_buffer_km=5.0)
+        trajectory_intersections = GISService.intersect_trajectory_with_gis(trajectory_points, max_buffer_km=15.0)
 
         # Distance to coast calculation
         nearest_dist_km = nearby_assets[0]["distance_km"] if nearby_assets else 15.0
         max_dist_km = 20.0
         coastal_impact_score = max(0.0, min(1.0, round(1.0 - (nearest_dist_km / max_dist_km), 2)))
 
-        # Ecosystem score (mangroves, beaches, wetlands along trajectory)
-        eco_assets = [a for a in trajectory_intersections if a["area_type"] in ["mangrove", "beach", "wetland"]]
-        if eco_assets:
-            closest_eco = eco_assets[0]["distance_km"]
-            ecosystem_score = max(0.0, min(1.0, round(1.0 - (closest_eco / 5.0), 2)))
+        # Fetch biodiversity protected sites
+        from app.services.biodiversity_service import BiodiversityService
+        bio_data = BiodiversityService.get_biodiversity_exposure(latitude, longitude, trajectory_points)
+        bio_sites = bio_data.get("protected_sites", [])
+
+        # Ecosystem score (mangroves, beaches, wetlands, protected reserves)
+        eco_distances = []
+        for a in trajectory_intersections + nearby_assets:
+            if a.get("area_type") in ["mangrove", "beach", "wetland", "estuary", "river_outlet"]:
+                eco_distances.append(a["distance_km"])
+        for st in bio_sites:
+            if "distance_km" in st:
+                eco_distances.append(st["distance_km"])
+
+        if eco_distances:
+            closest_eco = min(eco_distances)
+            ecosystem_score = max(0.10, min(1.0, round(1.0 - (closest_eco / 15.0), 2)))
         else:
             ecosystem_score = 0.10
 
-        # Human exposure score (ports, fishing zones, coastal settlements)
-        human_assets = [a for a in trajectory_intersections if a["area_type"] in ["port", "fishing_zone", "coastal_industry"]]
-        if human_assets:
-            closest_human = human_assets[0]["distance_km"]
-            human_exposure_score = max(0.0, min(1.0, round(1.0 - (closest_human / 5.0), 2)))
+        # Human exposure score (ports, fishing zones, coastal settlements, industrial channels)
+        human_distances = []
+        for a in trajectory_intersections + nearby_assets:
+            if a.get("area_type") in ["port", "fishing_zone", "coastal_industry", "channel", "river_outlet"]:
+                human_distances.append(a["distance_km"])
+
+        if human_distances:
+            closest_human = min(human_distances)
+            human_exposure_score = max(0.10, min(1.0, round(1.0 - (closest_human / 15.0), 2)))
         else:
             human_exposure_score = 0.10
 

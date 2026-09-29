@@ -254,12 +254,14 @@ class GISService:
             )
 
             if min_dist <= max_buffer_km:
-                if min_dist < 2.0:
+                if min_dist < 3.0:
                     risk = "CRITICAL"
-                elif min_dist < 5.0:
+                elif min_dist < 6.0:
                     risk = "HIGH"
-                else:
+                elif min_dist < 10.0:
                     risk = "MODERATE"
+                else:
+                    risk = "LOW"
 
                 affected.append({
                     "area_name": asset["name"],
@@ -273,11 +275,13 @@ class GISService:
             pt0 = trajectory_points[0]
             nearby = cls.get_nearby_assets(pt0["latitude"], pt0["longitude"], max_distance_km=20.0)
             for item in nearby[:3]:
+                d = item["distance_km"]
+                r = "CRITICAL" if d < 3.0 else ("HIGH" if d < 6.0 else ("MODERATE" if d < 10.0 else "LOW"))
                 sorted_affected.append({
                     "area_name": item["name"],
                     "area_type": item["type"],
-                    "distance_km": item["distance_km"],
-                    "risk_level": "MODERATE" if item["distance_km"] > 5.0 else "HIGH"
+                    "distance_km": d,
+                    "risk_level": r
                 })
         return sorted_affected
 
