@@ -235,7 +235,7 @@ class GISService:
     def intersect_trajectory_with_gis(
         cls,
         trajectory_points: List[Dict[str, float]],
-        max_buffer_km: float = 5.0
+        max_buffer_km: float = 15.0
     ) -> List[Dict[str, Any]]:
         """
         Intersects projected pollution trajectory path with GIS sensitive layers (Section 25).
@@ -254,9 +254,9 @@ class GISService:
             )
 
             if min_dist <= max_buffer_km:
-                if min_dist < 1.5:
+                if min_dist < 2.0:
                     risk = "CRITICAL"
-                elif min_dist < 3.0:
+                elif min_dist < 5.0:
                     risk = "HIGH"
                 else:
                     risk = "MODERATE"
@@ -271,12 +271,14 @@ class GISService:
         sorted_affected = sorted(affected, key=lambda x: x["distance_km"])
         if not sorted_affected and trajectory_points:
             pt0 = trajectory_points[0]
-            sorted_affected.append({
-                "area_name": f"Local Marine & Coastal Environment ({pt0['latitude']:.3f}°N, {pt0['longitude']:.3f}°E)",
-                "area_type": "coastal_zone",
-                "distance_km": round(pt0.get("uncertainty_km", 1.2), 2),
-                "risk_level": "MODERATE"
-            })
+            nearby = cls.get_nearby_assets(pt0["latitude"], pt0["longitude"], max_distance_km=20.0)
+            for item in nearby[:3]:
+                sorted_affected.append({
+                    "area_name": item["name"],
+                    "area_type": item["type"],
+                    "distance_km": item["distance_km"],
+                    "risk_level": "MODERATE" if item["distance_km"] > 5.0 else "HIGH"
+                })
         return sorted_affected
 
     @classmethod

@@ -254,10 +254,13 @@ async def run_monitoring_cycle(
                 ))
 
         # Calculate Confidence (Section 22)
+        sat_obs_count = db.query(SatelliteObservation).filter_by(incident_id=target_incident.id).count()
+        has_second_sat = (sat_obs_count >= 1) or (image_paths.get("before_after_image_path") is not None) or (len(scenes) > 1)
+
         conf_res = ConfidenceCalculator.calculate_confidence(
             has_satellite=True,
             satellite_model_conf=det_conf,
-            has_second_satellite=(len(target_incident.satellite_observations) > 1),
+            has_second_satellite=has_second_sat,
             environmental_match=True
         )
         target_incident.confidence_score = conf_res["confidence_score"]
@@ -303,7 +306,9 @@ async def run_monitoring_cycle(
             ocean_data=ocean_data,
             candidate_sources=cand_sources_list,
             predicted_path=trajectory_pts,
-            affected_areas=risk_res["affected_areas"]
+            affected_areas=risk_res["affected_areas"],
+            confidence_breakdown=conf_res["breakdown_points"],
+            risk_breakdown=risk_res
         )
 
         db.commit()

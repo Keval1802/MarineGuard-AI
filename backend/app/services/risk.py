@@ -89,7 +89,10 @@ class RiskCalculator:
         return {
             "priority_score": priority_score,
             "risk_level": level,
+            "confidence_norm": confidence_norm,
             "severity_score": severity_score,
+            "base_severity": base_sev,
+            "area_factor": area_factor,
             "coastal_impact_score": coastal_impact_score,
             "ecosystem_score": ecosystem_score,
             "human_exposure_score": human_exposure_score,
