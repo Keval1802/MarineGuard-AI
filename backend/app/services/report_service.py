@@ -60,7 +60,24 @@ class ReportService:
         cloud_cover = 2.1
         if satellite_obs and len(satellite_obs) > 0:
             cloud_cover = satellite_obs[0].get("cloud_cover", 2.1)
-        optical_gate_status = f"PASSED — Cloud cover ({cloud_cover:.1f}%) is below the 20.0% threshold for surface optical reflectance analysis."
+        
+        if cloud_cover <= 20.0:
+            optical_gate_status = f"PASSED — Cloud cover ({cloud_cover:.1f}%) is below the 20.0% threshold for surface optical reflectance analysis."
+        else:
+            optical_gate_status = f"CAUTION — High cloud cover ({cloud_cover:.1f}% > 20.0%) degrades surface optical reflectance quality."
+
+        # Reliability Gate Safety Cap Rule (Section 16 / Credibility Guardrail)
+        gate_warning = (
+            sar_gate_status.startswith("CAUTION") or sar_gate_status.startswith("FAILED") or
+            optical_gate_status.startswith("CAUTION") or optical_gate_status.startswith("FAILED")
+        )
+
+        effective_risk_level = risk_level
+        if gate_warning and risk_level in ["HIGH", "CRITICAL"]:
+            effective_risk_level = "MODERATE"
+            priority_display_str = f"**{priority_score:.3f} / 1.000** (**{effective_risk_level} Priority — Capped due to Gate Caution**)"
+        else:
+            priority_display_str = f"**{priority_score:.3f} / 1.000** (**{risk_level} Priority**)"
 
         # 2. Confidence Weighted Breakdown (Section 22)
         cb = confidence_breakdown or {}
@@ -178,7 +195,7 @@ class ReportService:
 - **Anomaly Classification:** {anomaly_type} Candidate
 - **Estimated Surface Footprint:** ~{estimated_area_km2:.2f} km² *(approximate statistical anomaly pixel count; uncalibrated for sub-pixel thickness or sheen distribution)*
 - **Confidence Rating:** **{confidence_score:.1f}%** ({confidence_level})
-- **Priority Rating:** **{priority_score:.3f} / 1.000** (**{risk_level} Priority**)
+- **Priority Rating:** {priority_display_str}
 
 #### Detection Method Reliability Gates
 - **SAR Wind-Gate Verification:** {sar_gate_status}
@@ -203,7 +220,7 @@ class ReportService:
 - **Coastal Proximity Impact (20% Weight):** `{coastal_contrib:.3f}` *(Impact score {coastal_impact:.2f} [nearest shore: {nearest_coast_km:.1f} km] × 0.20)*
 - **Ecosystem Vulnerability (20% Weight):** `{eco_contrib:.3f}` *(Mangrove / beach exposure score {eco_score:.2f} × 0.20)*
 - **Human Exposure (10% Weight):** `{human_contrib:.3f}` *(Port / fishing zone exposure score {human_score:.2f} × 0.10)*
-- **Composite Priority Score:** **{priority_score:.3f} / 1.000 ({risk_level} Priority)**
+- **Composite Priority Score:** {priority_display_str}
 
 ---
 

@@ -223,17 +223,73 @@ class BiodiversityService:
     ) -> Dict[str, Any]:
         """
         Calculates species range overlaps and protected marine site exposures
-        based on IUCN Red List, OBIS, and WDPA / Protected Planet datasets.
+        dynamically using GIS engine intersections and trajectory forecast points.
         """
+        from app.environmental.gis import GISService
+
         matched_species = []
         matched_sites = []
 
+        # 1. Match Regional Species & Protected Base Data
         for region in cls.SPECIES_DATABASE:
             lat_min, lat_max, lon_min, lon_max = region["region_box"]
             if lat_min <= lat <= lat_max and lon_min <= lon <= lon_max:
-                matched_species.extend(region["species"])
-                matched_sites.extend(region["protected_sites"])
+                raw_species = region["species"]
+                # Update species intersection times dynamically based on trajectory forecast points
+                pts = trajectory_points or [{"forecast_time": "+3h"}]
+                for i, sp in enumerate(raw_species):
+                    t_label = pts[min(i, len(pts) - 1)].get("forecast_time", "+3h")
+                    matched_species.append({
+                        "name": sp["name"],
+                        "status": sp["status"],
+                        "intersect_time": t_label,
+                        "source": sp["source"]
+                    })
                 break
+
+        # 2. Dynamically intersect trajectory with GIS ecological assets (WDPA / Protected Planet)
+        pts = trajectory_points or [{"latitude": lat, "longitude": lon, "forecast_time": "+3h"}]
+        gis_affected = GISService.intersect_trajectory_with_gis(pts, max_buffer_km=15.0)
+
+        for asset in gis_affected:
+            atype = asset.get("area_type", "")
+            if atype in ["mangrove", "beach", "wetland", "estuary", "river_outlet", "sanctuary", "reserve", "coastal_zone"]:
+                dist = asset["distance_km"]
+                # Unified 4-tier risk scale: CRITICAL (<3km), HIGH (3-6km), MODERATE (6-10km), LOW (>=10km)
+                if dist < 3.0:
+                    r_level = "CRITICAL"
+                    time_basis = "within projected +3h exposure zone"
+                elif dist < 6.0:
+                    r_level = "HIGH"
+                    time_basis = "within projected +6h exposure zone"
+                elif dist < 10.0:
+                    r_level = "MODERATE"
+                    time_basis = "within projected +12h exposure zone"
+                else:
+                    r_level = "LOW"
+                    time_basis = "within projected +24h exposure zone"
+
+                matched_sites.append({
+                    "name": asset["area_name"],
+                    "distance_km": dist,
+                    "risk": r_level,
+                    "basis": time_basis,
+                    "source": "WDPA / Protected Planet"
+                })
+
+        # Fallback to nearest GIS asset if no specific ecological intersection returned
+        if not matched_sites:
+            nearby = GISService.get_nearby_assets(lat, lon, max_distance_km=20.0)
+            for item in nearby[:2]:
+                dist = item["distance_km"]
+                r_level = "CRITICAL" if dist < 3.0 else ("HIGH" if dist < 6.0 else ("MODERATE" if dist < 10.0 else "LOW"))
+                matched_sites.append({
+                    "name": item["name"],
+                    "distance_km": dist,
+                    "risk": r_level,
+                    "basis": f"within projected exposure buffer",
+                    "source": "WDPA / Protected Planet"
+                })
 
         return {
             "has_biodiversity_data": bool(matched_species or matched_sites),

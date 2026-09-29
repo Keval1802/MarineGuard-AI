@@ -210,7 +210,9 @@ for investigation only. MarineGuard AI does not establish legal responsibility.
                 "reason": "Priority score < 0.30; logged to database without dispatching email alert."
             }
 
-        alert_type = "HIGH_PRIORITY_EMAIL" if priority_score >= 0.80 else "EMAIL_ALERT"
+        # Reliability Gate Capping: Only escalate to HIGH_PRIORITY_EMAIL if priority >= 0.80 AND risk_level is HIGH/CRITICAL (un-capped)
+        is_capped = "MODERATE" in risk_level or "Capped" in risk_level
+        alert_type = "HIGH_PRIORITY_EMAIL" if (priority_score >= 0.80 and not is_capped) else "EMAIL_ALERT"
 
         res = cls.send_report_email(
             incident_code=incident_code,
