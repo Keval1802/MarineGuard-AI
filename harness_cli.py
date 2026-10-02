@@ -4,11 +4,13 @@ import argparse
 
 sys.path.insert(0, os.path.join(os.getcwd(), "backend"))
 
+from app.database import init_db
 from harness.api_harness import APIEndpointHarness
 from harness.agent_harness import AgentWorkflowHarness
 from app.main import app
 
 def main():
+    init_db()
     parser = argparse.ArgumentParser(description="MarineGuard AI System Harness Runner")
     parser.add_argument("--mode", choices=["all", "api", "agents", "satellite"], default="all")
     args = parser.parse_args()

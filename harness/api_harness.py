@@ -1,10 +1,12 @@
 from fastapi.testclient import TestClient
 from typing import Dict
+from app.database import init_db
 
 class APIEndpointHarness:
     """Verifies FastAPI endpoints, fallback incident resolution, and email alerts."""
 
     def __init__(self, app):
+        init_db()
         self.client = TestClient(app)
         self.headers = {"Authorization": "Bearer dev-admin-token"}
 
