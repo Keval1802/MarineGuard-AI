@@ -12,7 +12,7 @@ from app.main import app
 def main():
     init_db()
     parser = argparse.ArgumentParser(description="MarineGuard AI System Harness Runner")
-    parser.add_argument("--mode", choices=["all", "api", "agents", "satellite"], default="all")
+    parser.add_argument("--mode", choices=["all", "api", "agents", "satellite", "pollutants"], default="all")
     args = parser.parse_args()
 
     print("MARINEGUARD AI SYSTEM HARNESS RUNNER")
@@ -44,6 +44,13 @@ def main():
         }
         out = asyncio.run(AgentWorkflowHarness.run_workflow_test(payload))
         print(f"  Workflow Result: {out}")
+
+    if args.mode in ["all", "pollutants"]:
+        print("\nTesting Multi-Pollutant Spectrum Analysis Harness...")
+        import asyncio
+        p_res = asyncio.run(AgentWorkflowHarness.run_all_pollutants_harness_test())
+        for ptype, info in p_res.items():
+            print(f"  Pollutant Type: {ptype:<30} -> Priority: {info['priority_score']:.3f} [{info['risk_level']}] (Severity: {info['base_severity']:.2f})")
 
     print("\nSystem Harness Execution Completed Successfully")
 

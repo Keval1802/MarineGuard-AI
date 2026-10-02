@@ -28,13 +28,13 @@ class RiskCalculator:
         # 1. Normalized Confidence (0 - 1)
         confidence_norm = max(0.0, min(1.0, confidence_score / 100.0))
 
-        # 2. Severity Score (0 - 1)
+        # 2. Multi-Pollutant Base Severity Calibration (0 - 1)
         base_severity_map = {
-            "OIL_LIKE_ANOMALY": 0.65,
-            "HIGH_TURBIDITY_EVENT": 0.20,
-            "FLOATING_MATERIAL_CANDIDATE": 0.45,
-            "SURFACE_ANOMALY": 0.35,
-            "FALSE_POSITIVE": 0.05,
+            "OIL_LIKE_ANOMALY": 0.65,             # Petroleum / Fuel Hydrocarbons
+            "FLOATING_MATERIAL_CANDIDATE": 0.40,  # Plastic Debris / Algal Bloom / Chemical Sheen
+            "SURFACE_ANOMALY": 0.30,             # Unclassified Surface Film / Thermal Plume
+            "HIGH_TURBIDITY_EVENT": 0.15,         # Natural Estuarine Sediment / Silt Mudflats
+            "FALSE_POSITIVE": 0.05,              # Cloud / Sensor Artifact / Land Crop
             "UNKNOWN": 0.25
         }
         base_sev = base_severity_map.get(anomaly_type, 0.25)
@@ -93,11 +93,20 @@ class RiskCalculator:
         )
         priority_score = round(max(0.0, min(1.0, priority_score)), 3)
 
-        # Risk Classification & Non-Hazardous Event Priority Capping
-        if anomaly_type in ["HIGH_TURBIDITY_EVENT", "FALSE_POSITIVE", "NORMAL"]:
-            priority_score = min(priority_score, 0.350)
-            level = "LOW" if anomaly_type == "FALSE_POSITIVE" else "MODERATE"
-        else:
+        # Multi-Pollutant Priority Capping & Risk Classification Rules
+        if anomaly_type == "FALSE_POSITIVE":
+            priority_score = min(priority_score, 0.100)
+            level = "LOW"
+        elif anomaly_type == "HIGH_TURBIDITY_EVENT":
+            priority_score = min(priority_score, 0.300)
+            level = "LOW" if priority_score < 0.250 else "MODERATE"
+        elif anomaly_type == "SURFACE_ANOMALY":
+            priority_score = min(priority_score, 0.450)
+            level = "MODERATE"
+        elif anomaly_type == "FLOATING_MATERIAL_CANDIDATE":
+            priority_score = min(priority_score, 0.650)
+            level = "HIGH" if priority_score >= 0.500 else "MODERATE"
+        else:  # OIL_LIKE_ANOMALY
             if priority_score < 0.30:
                 level = "LOW"
             elif priority_score < 0.50:
