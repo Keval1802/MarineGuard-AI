@@ -31,12 +31,13 @@ class RiskCalculator:
         # 2. Severity Score (0 - 1)
         base_severity_map = {
             "OIL_LIKE_ANOMALY": 0.65,
-            "HIGH_TURBIDITY_EVENT": 0.55,
+            "HIGH_TURBIDITY_EVENT": 0.20,
             "FLOATING_MATERIAL_CANDIDATE": 0.45,
             "SURFACE_ANOMALY": 0.35,
+            "FALSE_POSITIVE": 0.05,
             "UNKNOWN": 0.25
         }
-        base_sev = base_severity_map.get(anomaly_type, 0.30)
+        base_sev = base_severity_map.get(anomaly_type, 0.25)
         # Scale up severity with estimated area (up to max 10 km2 area factor)
         area_factor = min(0.35, (estimated_area_km2 / 10.0) * 0.35)
         severity_score = min(1.0, round(base_sev + area_factor, 2))
@@ -92,15 +93,19 @@ class RiskCalculator:
         )
         priority_score = round(max(0.0, min(1.0, priority_score)), 3)
 
-        # Risk Classification (Section 26)
-        if priority_score < 0.30:
-            level = "LOW"
-        elif priority_score < 0.50:
-            level = "MODERATE"
-        elif priority_score < 0.75:
-            level = "HIGH"
+        # Risk Classification & Non-Hazardous Event Priority Capping
+        if anomaly_type in ["HIGH_TURBIDITY_EVENT", "FALSE_POSITIVE", "NORMAL"]:
+            priority_score = min(priority_score, 0.350)
+            level = "LOW" if anomaly_type == "FALSE_POSITIVE" else "MODERATE"
         else:
-            level = "CRITICAL"
+            if priority_score < 0.30:
+                level = "LOW"
+            elif priority_score < 0.50:
+                level = "MODERATE"
+            elif priority_score < 0.75:
+                level = "HIGH"
+            else:
+                level = "CRITICAL"
 
         return {
             "priority_score": priority_score,
