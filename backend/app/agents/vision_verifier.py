@@ -225,14 +225,28 @@ Respond in JSON:
                 "reasoning": f"Optical image cloud / sun glint threshold exceeded ({cloud_ratio*100:.1f}% bright cloud pixels). Anomaly rejected as false positive cloud/glint."
             }
 
-        if land_ratio > 0.45:
+        if land_ratio > 0.35:
             return {
                 "is_ocean_water": False,
                 "is_cloud_or_glint": False,
                 "is_valid_marine_anomaly": False,
                 "verified_class": "FALSE_POSITIVE",
                 "verified_confidence": 0.0,
-                "reasoning": f"Image crop contains {land_ratio*100:.1f}% land/vegetation pixels. Region flagged as terrestrial land, not marine ocean."
+                "reasoning": f"Image crop contains {land_ratio*100:.1f}% land/intertidal mudflat pixels. Region flagged as coastal land/mudflat, not open marine water."
+            }
+
+        # Calculate Turbid Sediment / Intertidal Mudflat Fraction (High Red & Green reflectance in shallow estuarine water)
+        sediment_pixels = np.sum((img_rgb[:, :, 0] > 110) & (img_rgb[:, :, 1] > 100) & (img_rgb[:, :, 2] < 90))
+        sediment_ratio = sediment_pixels / (img_rgb.shape[0] * img_rgb.shape[1])
+
+        if sediment_ratio > 0.25 and candidate_class == "OIL_LIKE_ANOMALY":
+            return {
+                "is_ocean_water": True,
+                "is_cloud_or_glint": False,
+                "is_valid_marine_anomaly": False,
+                "verified_class": "HIGH_TURBIDITY_EVENT",
+                "verified_confidence": 0.35,
+                "reasoning": f"Optical spectral analysis indicates high estuarine sediment turbidity / intertidal mudflat exposure ({sediment_ratio*100:.1f}% sediment reflectance). Reclassified from OIL_LIKE_ANOMALY to HIGH_TURBIDITY_EVENT."
             }
 
         return {
