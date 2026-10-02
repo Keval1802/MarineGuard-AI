@@ -193,6 +193,15 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
             except Exception as e:
                 print(f"[CopernicusCatalogService] Live Process API fetch notice: {e}")
 
+        # Check Harness Provider for real static satellite patch assets
+        try:
+            from harness.config import harness_settings
+            from harness.satellite_harness import SatelliteHarnessProvider
+            if harness_settings.USE_REAL_SATELLITE_ASSETS:
+                return SatelliteHarnessProvider.get_real_satellite_patch(mission, width, height)
+        except Exception as harness_err:
+            pass
+
         # Render satellite observation imagery fallback when live API is unavailable
         np.random.seed(int(abs(lat * 1000 + lon * 100)))
         atype = anomaly_type or "OIL_LIKE_ANOMALY"

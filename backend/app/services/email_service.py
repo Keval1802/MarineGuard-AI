@@ -51,7 +51,7 @@ class EmailAlertService:
         subject = f"[MARINEGUARD AI ALERT] Incident Report {incident_code} — {loc_str} [{subject_ts}]"
 
         # 1. Plain Text Body
-        body_text = f"""MARINEGUARD AI — INCIDENT INVESTIGATION REPORT
+        body_text = f"""MARINEGUARD AI - INCIDENT INVESTIGATION REPORT
 
 Incident Reference: {incident_code}
 Location: {loc_str}
@@ -59,13 +59,10 @@ Detected Event: {atype_str}
 Priority Rating: {pri_score:.3f} / 1.000
 Dispatch Timestamp: {dispatch_ts}
 
-======================================================================
 EXECUTIVE INVESTIGATION REPORT
-======================================================================
 
 {report_text or 'Report pending generation.'}
 
-======================================================================
 Notice: Identified candidate release sources represent geographic targets
 for investigation only. MarineGuard AI does not establish legal responsibility.
 """
