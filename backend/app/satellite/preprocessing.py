@@ -60,12 +60,20 @@ class SatellitePreprocessor:
         """
         if len(image_rgb.shape) == 2:
             # Grayscale SAR image
-            return (image_rgb < 135).astype(np.uint8)
+            return (image_rgb < 140).astype(np.uint8)
 
         r = image_rgb[:, :, 0].astype(np.int32)
         g = image_rgb[:, :, 1].astype(np.int32)
         b = image_rgb[:, :, 2].astype(np.int32)
 
+        # Check if 3-channel image is a grayscale SAR scene (R == G == B)
+        if np.array_equal(r, g) and np.array_equal(g, b):
+            # SAR Image: Land backscatter is bright (> 140), ocean water is dark (< 140)
+            water_mask = (r < 140).astype(np.uint8)
+            kernel = np.ones((5, 5), np.uint8)
+            return cv2.morphologyEx(water_mask, cv2.MORPH_OPEN, kernel)
+
+        # RGB Optical Image (Sentinel-2)
         # Land pixels (vegetation / dry soil dominance)
         is_land = ((g > b + 25) & (r < 170)) | ((r > 120) & (g > 120) & (b < 60))
 
