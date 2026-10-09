@@ -79,10 +79,21 @@ class ReportService:
         else:
             priority_display_str = f"**{priority_score:.3f} / 1.000** (**{risk_level} Priority**)"
 
-        # 2. Confidence Weighted Breakdown (Section 22)
+        # 2. Confidence Weighted Breakdown & Sensor Agreement Check (Section 22)
         cb = confidence_breakdown or {}
         sat_primary_pts = cb.get("satellite_primary", 25.5)
-        sat_secondary_pts = cb.get("satellite_secondary", 20.0)
+        
+        # Dual Verification Bonus (+20.0%): Only awarded if optical evidence is consistent with SAR oil anomaly and within 3h time gap
+        optical_cls = cb.get("optical_class", "FLOATING_MATERIAL_CANDIDATE")
+        time_gap_hours = cb.get("time_gap_hours", 0.0)
+        
+        if optical_cls == anomaly_type and time_gap_hours <= 3.0:
+            sat_secondary_pts = 20.0
+            dual_verif_label = "+20.0% (Sentinel-1 SAR & Sentinel-2 Optical co-observation match)"
+        else:
+            sat_secondary_pts = 0.0
+            dual_verif_label = "+0.0% (Optical class disagrees / Sediment background)"
+
         citizen_pts = cb.get("citizen_report", 0.0)
         vessel_pts = cb.get("vessel_context", 0.0)
         env_pts = cb.get("environmental_match", 15.0)
@@ -194,7 +205,7 @@ class ReportService:
 ### 1. Detection Summary & Reliability Verification
 - **Anomaly Classification:** {anomaly_type} Candidate
 - **Estimated Surface Footprint:** ~{estimated_area_km2:.2f} km² *(approximate statistical anomaly pixel count; uncalibrated for sub-pixel thickness or sheen distribution)*
-- **Confidence Rating:** **{confidence_score:.1f}%** ({confidence_level})
+- **Confidence Rating:** **{confidence_score:.1f}%** ({confidence_level}) *(heuristic multi-source evidence score rating)*
 - **Priority Rating:** {priority_display_str}
 
 #### Detection Method Reliability Gates
@@ -207,7 +218,7 @@ class ReportService:
 
 #### A. Confidence Score Weighted Breakdown
 - **Primary Remote Sensing Anomaly:** `+{sat_primary_pts:.1f}%` *(Satellite detection strength)*
-- **Multi-Sensor Dual Verification:** `+{sat_secondary_pts:.1f}%` *(Sentinel-1 SAR & Sentinel-2 Optical co-observation)*
+- **Multi-Sensor Dual Verification:** `{dual_verif_label}`
 - **Environmental Physics Match:** `+{env_pts:.1f}%` *(Wind and ocean drift vector consistency)*
 - **Vessel AIS / Corridor Correlation:** `+{vessel_pts:.1f}%` *(Candidate vessel track spatial match)*
 - **Citizen Verification:** `+{citizen_pts:.1f}%` *(Ground-truthed citizen reports)*
