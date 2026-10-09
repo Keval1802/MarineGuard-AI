@@ -198,8 +198,11 @@ function evaluatePixel(sample) { return [sample.VV * 3.0, sample.VV * 3.0, sampl
             from harness.config import harness_settings
             from harness.satellite_harness import SatelliteHarnessProvider
             if harness_settings.USE_REAL_SATELLITE_ASSETS:
-                return SatelliteHarnessProvider.get_real_satellite_patch(mission, width, height)
-        except Exception as harness_err:
+                is_sar = "Sentinel-1" in mission
+                filepath = harness_settings.S1_SAR_PATH if is_sar else harness_settings.S2_OPTICAL_PATH
+                if filepath.exists():
+                    return SatelliteHarnessProvider.get_real_satellite_patch(mission, width, height)
+        except Exception:
             pass
 
         # Render satellite observation imagery fallback when live API is unavailable
